@@ -29,8 +29,7 @@ def google_client_config():
 
 def google_credentials():
  if not TOKEN_FILE.exists(): return None
- try:
-  return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
+ try: return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
  except Exception: return None
 
 def drive_service():
@@ -56,8 +55,7 @@ def drive_upload(path, filename, folder_id):
  service=drive_service()
  if not service: return None
  media=MediaFileUpload(str(path),resumable=True)
- result=service.files().create(body={"name":filename,"parents":[folder_id]},media_body=media,fields="id,name,webViewLink,mimeType").execute()
- return result
+ return service.files().create(body={"name":filename,"parents":[folder_id]},media_body=media,fields="id,name,webViewLink,mimeType").execute()
 
 def sync_index_to_drive(items, folder_id):
  service=drive_service()
@@ -78,12 +76,7 @@ def rows():
  except: return []
 def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),encoding="utf-8")
 def ocr(path):
- img=Image.open(path)
- img=ImageOps.exif_transpose(img)
- img.thumbnail((2000,2000))
- img=ImageOps.grayscale(img)
- img=ImageOps.autocontrast(img)
- # PSM 3 detects page layout more reliably for official letters and multi-column decisions.
+ img=Image.open(path); img=ImageOps.exif_transpose(img); img.thumbnail((2000,2000)); img=ImageOps.grayscale(img); img=ImageOps.autocontrast(img)
  return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--oem 1 --psm 3 -c preserve_interword_spaces=1",timeout=40)
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
@@ -102,25 +95,13 @@ def extract(path,ext):
  return ""
 
 def detect_metadata(text, filename):
- clean=[re.sub(r"\s+"," ",x).strip(" -–—:؛") for x in text.splitlines()]
- clean=[x for x in clean if len(x)>3]
- joined="\n".join(clean[:100])
- # Document number: Arabic and French/English common labels
- number=""
- pats=[
-  r"(?:رقم|الرقم)\s*(?:الأساس|الأساسي)?\s*[:：#-]?\s*([0-9٠-٩]+\s*[/\\-]\s*[0-9٠-٩]{2,4}|[0-9٠-٩]{2,})",
-  r"(?:قرار|تعميم|مذكرة|مرسوم|قانون)\s*رقم\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)",
-  r"(?:N[°ºo]|No\\.?|Numéro)\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)"
- ]
+ clean=[re.sub(r"\s+"," ",x).strip(" -–—:؛") for x in text.splitlines()]; clean=[x for x in clean if len(x)>3]; joined="\n".join(clean[:100]); number=""
+ pats=[r"(?:رقم|الرقم)\s*(?:الأساس|الأساسي)?\s*[:：#-]?\s*([0-9٠-٩]+\s*[/\\-]\s*[0-9٠-٩]{2,4}|[0-9٠-٩]{2,})",r"(?:قرار|تعميم|مذكرة|مرسوم|قانون)\s*رقم\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)",r"(?:N[°ºo]|No\\.?|Numéro)\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)"]
  for p in pats:
   m=re.search(p,joined,re.I)
   if m: number=re.sub(r"\s+","",m.group(1)); break
  date=""
- date_patterns=[
-  r"([0-3]?[0-9٠-٩]{1,2}\s*[/.-]\s*[01]?[0-9٠-٩]{1,2}\s*[/.-]\s*(?:19|20)?[0-9٠-٩]{2})",
-  r"([0-3]?[0-9٠-٩]{1,2}\s+(?:كانون الثاني|شباط|آذار|اذار|نيسان|أيار|ايار|حزيران|تموز|آب|اب|أيلول|ايلول|تشرين الأول|تشرين الثاني|كانون الأول)\s+[0-9٠-٩]{4})",
-  r"([0-3]?[0-9]{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+[0-9]{4})"
- ]
+ date_patterns=[r"([0-3]?[0-9٠-٩]{1,2}\s*[/.-]\s*[01]?[0-9٠-٩]{1,2}\s*[/.-]\s*(?:19|20)?[0-9٠-٩]{2})",r"([0-3]?[0-9٠-٩]{1,2}\s+(?:كانون الثاني|شباط|آذار|اذار|نيسان|أيار|ايار|حزيران|تموز|آب|اب|أيلول|ايلول|تشرين الأول|تشرين الثاني|كانون الأول)\s+[0-9٠-٩]{4})",r"([0-3]?[0-9]{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+[0-9]{4})"]
  for p in date_patterns:
   m=re.search(p,joined,re.I)
   if m: date=re.sub(r"\s+"," ",m.group(1)); break
@@ -132,12 +113,11 @@ def detect_metadata(text, filename):
  elif re.search(r"كتاب|مذكرة|مراسلة|كتاب رقم|note de service",low): category="كتاب"
  else: category="غير مصنّف"
  subject=""
- # prefer explicit subject/object label
  for p in [r"(?:الموضوع|موضوعه|الموضوع:|Subject|Objet)\s*[:：-]?\s*(.{8,180})",r"(?:بشأن|حول|المتعلق(?:ة)? ب)\s+(.{8,140})"]:
   m=re.search(p,joined,re.I)
   if m: subject=m.group(1).split("\n")[0].strip(); break
  if not subject:
-  skip=re.compile(r"^(?:الجمهورية اللبنانية|وزارة|المديرية|رقم|التاريخ|تاريخ|قرار|تعميم|مرسوم|قانون|لبنان|République|Ministère|Ministère)",re.I)
+  skip=re.compile(r"^(?:الجمهورية اللبنانية|وزارة|المديرية|رقم|التاريخ|تاريخ|قرار|تعميم|مرسوم|قانون|لبنان|République|Ministère)",re.I)
   subject=next((x for x in clean if len(x)>=12 and not skip.search(x)), "")
  if not subject: subject=Path(filename).stem.replace("_"," ").replace("-"," ")
  issuer=""
@@ -147,24 +127,15 @@ def detect_metadata(text, filename):
 
 @app.get("/api/health")
 def health(): return {"status":"ok","ocr_languages":"ara+fra+eng","google_drive_connected":google_credentials() is not None}
-
 @app.get("/auth/google")
 def google_auth():
- flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI)
- url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent")
- return RedirectResponse(url)
-
+ flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
 @app.get("/auth/google/callback")
 def google_callback(request:Request):
  try:
-  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI)
-  flow.fetch_token(authorization_response=str(request.url))
-  TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8")
-  service=drive_service(); folder_id=ensure_drive_folder(service)
-  sync_index_to_drive(rows(),folder_id)
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service); sync_index_to_drive(rows(),folder_id)
   return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
- except Exception as e:
-  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
+ except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents(): return rows()
 @app.post("/api/upload")
@@ -175,29 +146,20 @@ async def upload(files: list[UploadFile] = File(...)):
  try:
   for i,up in enumerate(files,1):
    name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
-   if ext not in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}:
-    raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
+   if ext not in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
    target=FILES/(ident+"-"+str(i)+ext)
    with target.open("wb") as out: shutil.copyfileobj(up.file,out)
    saved.append({"filename":name,"stored":target.name,"page":i})
-   try:
-    page_text=extract(target,ext)
-   except Exception as ocr_error:
-    page_text=""
-    ocr_errors.append({"page":i,"error":str(ocr_error)[:240]})
+   try: page_text=extract(target,ext)
+   except Exception as ocr_error: page_text=""; ocr_errors.append({"page":i,"error":str(ocr_error)[:240]})
    texts.append("[الصورة / الصفحة "+str(i)+"]\n"+page_text)
-  text="\n\n".join(texts)
-  recognized=re.sub(r"\[الصورة\s*/\sالصفحة\s*\d+\]","",text).strip()
+  text="\n\n".join(texts); recognized=re.sub(r"\[الصورة\s*/\sالصفحة\s*\d+\]","",text).strip()
   if len(recognized)<30:
    details="؛ ".join("الصفحة "+str(x["page"])+": "+x["error"] for x in ocr_errors)
    raise HTTPException(422,"لم يتمكن النظام من استخراج نص موثوق من الصور؛ لذلك لم نضف مستنداً وهمياً إلى الأرشيف. احتفظنا بالصور على الخادم. "+(details or "النص المستخرج أقل من الحد الأدنى المطلوب."))
   meta=detect_metadata(text," ".join(x["filename"] for x in saved))
- except HTTPException:
-  # Keep originals for diagnosis/retry, but never publish an unreadable image as an archived document.
-  raise
- except Exception as e:
-  # Keep uploaded originals even when document processing fails.
-  raise HTTPException(422,"تعذرت معالجة المستند: "+str(e)+". الصور الأصلية محفوظة على الخادم إن اكتمل نسخها.")
+ except HTTPException: raise
+ except Exception as e: raise HTTPException(422,"تعذرت معالجة المستند: "+str(e)+". الصور الأصلية محفوظة على الخادم إن اكتمل نسخها.")
  d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip()) or bool(ocr_errors),"ocr_status":"partial" if ocr_errors and text.strip() else ("failed" if ocr_errors else "complete"),"ocr_errors":ocr_errors}
  items=rows(); items.insert(0,d); save(items)
  try:
@@ -207,13 +169,11 @@ async def upload(files: list[UploadFile] = File(...)):
    for entry in saved:
     uploaded=drive_upload(FILES/entry["stored"],entry["filename"],folder_id)
     if uploaded: drive_files.append({"id":uploaded["id"],"name":uploaded["name"],"webViewLink":uploaded.get("webViewLink")})
-   d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id; d["drive_status"]="saved" if len(drive_files)==len(saved) else "partial"
-   items[0]=d; save(items); sync_index_to_drive(items,folder_id)
+   d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id; d["drive_status"]="saved" if len(drive_files)==len(saved) else "partial"; items[0]=d; save(items); sync_index_to_drive(items,folder_id)
   else: d["drive_status"]="not_connected"
  except Exception as drive_error:
   d["drive_status"]="error"; d["drive_error"]=str(drive_error)[:300]; items[0]=d; save(items)
- return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text[:1800],"ocr_status":d.get("ocr_status","complete"),"ocr_errors":ocr_errors,"storage_status":d.get("drive_status","not_connected") }
-
+ return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text),"extracted_text":text,"ocr_status":d.get("ocr_status","complete"),"ocr_errors":ocr_errors,"storage_status":d.get("drive_status","not_connected")}
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
  d=next((x for x in rows() if x["id"]==ident),None)
@@ -224,19 +184,18 @@ def get_file(ident:str,download:int=0,page:int=1):
  if download:
   archive=BASE/(ident+".zip")
   with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as z:
-   for entry,p in zip(group, [FILES/x["stored"] for x in group]):
+   for entry in group:
+    p=FILES/entry["stored"]
     if p.exists(): z.write(p,arcname=entry["filename"])
   return FileResponse(archive,filename=(d.get("number") or "document")+"-pages.zip",media_type="application/zip")
- entry=group[min(max(page-1,0),len(group)-1)]
- p=FILES/entry["stored"]
+ entry=group[min(max(page-1,0),len(group)-1)]; p=FILES/entry["stored"]
  if not p.exists(): raise HTTPException(404,"الصورة غير متاحة")
  return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
 @app.get("/api/ask")
 def ask(q:str):
  items=[]
  for d in rows():
-  body=(d.get("text","")+" "+d.get("subject","")+" "+d.get("title","")).lower()
-  score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
+  body=(d.get("text","")+" "+d.get("subject","")+" "+d.get("title","")).lower(); score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
   if score: items.append({"title":d["title"],"number":d["number"],"date":d["date"],"url":d["url"],"score":score,"text":d["text"][:900]})
  return {"question":q,"results":sorted(items,key=lambda x:x["score"],reverse=True)[:8],"notice":"تحقق من المستند الأصلي قبل اعتماد أي معلومة."}
 @app.get("/")
