@@ -5,7 +5,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import fitz
-from PIL import Image
+from PIL import Image, ImageOps
 import pytesseract
 from docx import Document
 from google_auth_oauthlib.flow import Flow
@@ -77,7 +77,13 @@ def rows():
  try: return json.loads(INDEX.read_text(encoding="utf-8"))
  except: return []
 def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),encoding="utf-8")
-def ocr(path): return pytesseract.image_to_string(Image.open(path),lang="ara+fra+eng")
+def ocr(path):
+ img=Image.open(path)
+ img=ImageOps.exif_transpose(img)
+ img.thumbnail((2200,2200))
+ img=ImageOps.grayscale(img)
+ img=ImageOps.autocontrast(img)
+ return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--psm 3",timeout=40)
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
  if ext==".pdf":
