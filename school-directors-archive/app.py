@@ -19,7 +19,7 @@ FILES.mkdir(parents=True,exist_ok=True)
 if not INDEX.exists(): INDEX.write_text("[]",encoding="utf-8")
 TOKEN_FILE=BASE/"google-token.json"
 DRIVE_FOLDER_FILE=BASE/"google-drive-folder.json"
-DRIVE_SCOPE=["https://www.googleapis.com/auth/drive.file"]
+DRIVE_SCOPE=["https://www.googleapis.com/auth/drive.file","openid","https://www.googleapis.com/auth/userinfo.email","https://www.googleapis.com/auth/userinfo.profile"]
 REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI","https://nabil-school-directors-archive-api.onrender.com/auth/google/callback")
 
 def google_client_config():
