@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes
+import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -11,7 +11,7 @@ from docx import Document
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from gemini_service import analyze_document_images, GeminiError, GeminiNotConfigured
 
 BASE=Path(os.getenv("DATA_DIR","/tmp/school-archive-data"))
@@ -59,6 +59,21 @@ def drive_upload(path, filename, folder_id):
  if not service: return None
  media=MediaFileUpload(str(path),resumable=True)
  return service.files().create(body={"name":filename,"parents":[folder_id]},media_body=media,fields="id,name,webViewLink,mimeType").execute()
+
+def restore_index_from_drive(service=None, folder_id=None):
+ service=service or drive_service()
+ if not service: return rows()
+ folder_id=folder_id or ensure_drive_folder(service)
+ query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
+ found=service.files().list(q=query,spaces="drive",fields="files(id)",pageSize=1).execute().get("files",[])
+ if not found: return rows()
+ raw=service.files().get(fileId=found[0]["id"],alt="media").execute()
+ if isinstance(raw,bytes): raw=raw.decode("utf-8")
+ restored=json.loads(raw)
+ if isinstance(restored,list):
+  save(restored)
+  return restored
+ return rows()
 
 def sync_index_to_drive(items, folder_id):
  service=drive_service()
@@ -136,18 +151,25 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","ocr_languages":"ara+fra+eng","google_drive_connected":google_credentials() is not None}
+def health(): return {"status":"ok","document_reader":"Gemini Vision","gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-2.5-flash"),"google_drive_connected":google_credentials() is not None}
 @app.get("/auth/google")
 def google_auth():
  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
 @app.get("/auth/google/callback")
 def google_callback(request:Request):
  try:
-  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service); sync_index_to_drive(rows(),folder_id)
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service)
+  if not rows(): restore_index_from_drive(service,folder_id)
+  sync_index_to_drive(rows(),folder_id)
   return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
-def documents(): return rows()
+def documents():
+ items=rows()
+ if not items:
+  try: items=restore_index_from_drive()
+  except Exception: pass
+ return items
 def normalize_key(value):
  value=str(value or "").strip().lower()
  value=value.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹","01234567890123456789"))
@@ -301,22 +323,41 @@ async def upload(files: list[UploadFile] = File(...)):
     current["processing_status"]="error"; current["processing_error"]=str(e)[:300]; save(items)
   except Exception: pass
   raise HTTPException(500,"تعذرت معالجة الرفع: "+str(e)[:240]+". احتفظ بالصور الأصلية إلى أن تتأكد من ظهورها في الأرشيف وGoogle Drive.")
+def ensure_local_page(d, entry):
+ p=FILES/entry["stored"]
+ if p.exists(): return p
+ drive_files=d.get("drive_files") or []
+ page_no=entry.get("page",1)
+ remote=next((x for x in drive_files if x.get("page")==page_no),None)
+ if not remote and len(drive_files)>=page_no: remote=drive_files[page_no-1]
+ if not remote or not remote.get("id"): return None
+ service=drive_service()
+ if not service: return None
+ p.parent.mkdir(parents=True,exist_ok=True)
+ request=service.files().get_media(fileId=remote["id"])
+ with p.open("wb") as fh:
+  downloader=MediaIoBaseDownload(fh,request)
+  done=False
+  while not done: _,done=downloader.next_chunk()
+ return p if p.exists() and p.stat().st_size else None
+
 @app.get("/api/file/{ident}")
 def get_file(ident:str,download:int=0,page:int=1):
- d=next((x for x in rows() if x["id"]==ident),None)
+ d=next((x for x in documents() if x["id"]==ident),None)
  if not d: raise HTTPException(404,"غير موجود")
  group=d.get("files") or [{"filename":d["filename"],"stored":ident+Path(d["filename"]).suffix.lower(),"page":1}]
- existing=[FILES/x["stored"] for x in group if (FILES/x["stored"]).exists()]
- if not existing: raise HTTPException(404,"الملفات غير متاحة")
  if download:
   archive=BASE/(ident+".zip")
   with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as z:
+   added=0
    for entry in group:
-    p=FILES/entry["stored"]
-    if p.exists(): z.write(p,arcname=entry["filename"])
+    p=ensure_local_page(d,entry)
+    if p and p.exists(): z.write(p,arcname=entry["filename"]); added+=1
+  if not added: raise HTTPException(404,"الملفات الأصلية غير متاحة حالياً؛ تحقق من اتصال Google Drive")
   return FileResponse(archive,filename=(d.get("number") or "document")+"-pages.zip",media_type="application/zip")
- entry=group[min(max(page-1,0),len(group)-1)]; p=FILES/entry["stored"]
- if not p.exists(): raise HTTPException(404,"الصورة غير متاحة")
+ entry=group[min(max(page-1,0),len(group)-1)]
+ p=ensure_local_page(d,entry)
+ if not p: raise HTTPException(404,"الصورة غير متاحة؛ تحقق من اتصال Google Drive")
  return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
 @app.get("/api/ask")
 def ask(q:str):
