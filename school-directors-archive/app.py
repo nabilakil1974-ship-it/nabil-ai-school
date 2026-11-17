@@ -231,6 +231,33 @@ def normalize_key(value):
  value=re.sub(r"[\s\W_]+","",value,flags=re.UNICODE)
  return value
 
+def search_documents(q="", category=""):
+ items=rows()
+ if not items:
+  try: items=restore_index_from_drive()
+  except Exception: pass
+ wanted=normalize_key(category)
+ query=normalize_key(q)
+ terms=[normalize_key(part) for part in str(q or "").split() if normalize_key(part)]
+ results=[]
+ for item in items:
+  item_category=normalize_key(item.get("category") or item.get("document_type") or "")
+  if wanted and wanted not in item_category: continue
+  searchable=" ".join(str(item.get(key) or "") for key in (
+   "title","subject","number","document_number","date","document_date",
+   "issuer","category","document_type","text","referenced_decisions"
+  ))
+  haystack=normalize_key(searchable)
+  if query and query not in haystack and not all(term in haystack for term in terms):
+   continue
+  results.append(item)
+ return results
+
+@app.get("/api/search")
+def api_search(q: str = "", category: str = ""):
+ return {"query":q,"category":category,"count":len(search_documents(q,category)),
+         "results":search_documents(q,category)}
+
 def find_duplicate(items, number, date, subject, exclude_id=None):
  n,d,sub=normalize_key(number),normalize_key(date),normalize_key(subject)
  if not (n and d and sub): return None
