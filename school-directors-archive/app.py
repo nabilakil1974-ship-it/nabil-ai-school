@@ -28,6 +28,22 @@ def google_client_config():
  if not cid or not secret: raise HTTPException(503,"إعدادات Google OAuth غير مكتملة")
  return {"web":{"client_id":cid,"client_secret":secret,"auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","redirect_uris":[REDIRECT_URI]}}
 
+def persist_google_credentials(creds):
+ # Store the OAuth refresh token in Render's encrypted service environment so it
+ # survives container replacement. Requires a one-time RENDER_API_KEY secret.
+ api_key=os.getenv("RENDER_API_KEY")
+ service_id=os.getenv("RENDER_SERVICE_ID") or "srv-dbub2ton74is73dee6b0"
+ if not api_key: return False
+ try:
+  from urllib.request import Request as UrlRequest, urlopen
+  payload=json.dumps({"value":creds.to_json()}).encode("utf-8")
+  req=UrlRequest("https://api.render.com/v1/services/"+service_id+"/env-vars/GOOGLE_TOKEN_JSON",
+                 data=payload,headers={"Authorization":"Bearer "+api_key,"Content-Type":"application/json","Accept":"application/json"},method="PUT")
+  with urlopen(req,timeout=15) as response:
+   return 200 <= response.status < 300
+ except Exception:
+  return False
+
 def google_credentials():
  if not TOKEN_FILE.exists() and os.getenv("GOOGLE_TOKEN_JSON"):
   TOKEN_FILE.write_text(os.environ["GOOGLE_TOKEN_JSON"],encoding="utf-8")
@@ -40,7 +56,9 @@ def drive_service():
  if not creds: return None
  if creds.expired and creds.refresh_token:
   from google.auth.transport.requests import Request as GoogleRequest
-  creds.refresh(GoogleRequest()); TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
+  creds.refresh(GoogleRequest())
+  TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
+  persist_google_credentials(creds)
  return build("drive","v3",credentials=creds,cache_discovery=False)
 
 def ensure_drive_folder(service):
@@ -154,17 +172,17 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","document_reader":"Gemini Vision","gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None}
+def health(): return {"status":"ok","document_reader":"Gemini Vision","gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
 @app.get("/auth/google")
 def google_auth():
  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
 @app.get("/auth/google/callback")
 def google_callback(request:Request):
  try:
-  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); service=drive_service(); folder_id=ensure_drive_folder(service)
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); token_persisted=persist_google_credentials(flow.credentials); service=drive_service(); folder_id=ensure_drive_folder(service)
   if not rows(): restore_index_from_drive(service,folder_id)
   sync_index_to_drive(rows(),folder_id)
-  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
+  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>"+("تم حفظ تفويض Google في إعدادات Render الدائمة." if token_persisted else "تنبيه: الاتصال يعمل الآن، لكن حفظ التفويض بعد إعادة النشر غير مفعّل بعد؛ يلزم إعداد RENDER_API_KEY مرة واحدة في Render.")+"</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents():
