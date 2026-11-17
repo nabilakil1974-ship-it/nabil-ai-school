@@ -116,8 +116,9 @@ def analyze_document_images(images):
             response = client.models.generate_content(
                 model=model,
                 contents=contents,
+                # Gemini 3.8 Flash no longer accepts legacy sampling controls
+                # such as temperature; keep the request on supported structured output.
                 config=types.GenerateContentConfig(
-                    temperature=0.1,
                     response_mime_type="application/json",
                     response_schema=RESPONSE_SCHEMA,
                     max_output_tokens=16000,
