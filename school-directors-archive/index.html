@@ -83,7 +83,7 @@ $('uploadForm').addEventListener('submit',e=>{
  xhr.addEventListener('load',async()=>{
   try{
    let d;try{d=JSON.parse(xhr.responseText)}catch{throw Error('رد الخادم غير مفهوم')}
-   if(xhr.status<200||xhr.status>=300||!d.ok)throw Error(d.detail||'الخادم لم يؤكد معالجة الصور');
+   if(xhr.status<200||xhr.status>=300||!d.ok)throw Error(d.message||d.detail||'الخادم لم يؤكد حفظ الصور في Google Drive');
    const x=d.document||{}, chars=Number(d.extracted_characters||0), txt=(d.extracted_text||'').trim();
    const states=[true,true,!!x.number,!!x.date,!!x.subject&&chars>0];
    const details='<b>رقم المستند:</b> '+escStatus(x.number||'لم يتمكن من تحديده')+'\\n<b>التاريخ:</b> '+escStatus(x.date||'لم يتمكن من تحديده')+'\\n<b>الموضوع:</b> '+escStatus(x.subject||'لم يتمكن من تحديده')+'\\n\\n<b>عدد الأحرف المقروءة:</b> '+chars+'\\n<b>الجهة:</b> '+escStatus(x.issuer||'غير محددة')+'\\n<b>الفئة:</b> '+escStatus(x.category||'غير مصنفة')+'\\n<b>حالة القراءة:</b> '+escStatus(d.ocr_status||'غير محددة');
