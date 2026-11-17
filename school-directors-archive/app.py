@@ -153,7 +153,7 @@ def normalize_key(value):
  value=value.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹","01234567890123456789"))
  value=unicodedata.normalize("NFKD",value)
  value="".join(ch for ch in value if not unicodedata.combining(ch))
- value=re.sub(r"[\\s\\W_]+","",value,flags=re.UNICODE)
+ value=re.sub(r"[\s\W_]+","",value,flags=re.UNICODE)
  return value
 
 def find_duplicate(items, number, date, subject, exclude_id=None):
