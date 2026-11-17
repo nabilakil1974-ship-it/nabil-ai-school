@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re
+import os, json, uuid, shutil, re, zipfile
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -87,26 +87,49 @@ def health(): return {"status":"ok","ocr_languages":"ara+fra+eng"}
 @app.get("/api/documents")
 def documents(): return rows()
 @app.post("/api/upload")
-async def upload(file:UploadFile=File(...)):
- name=Path(file.filename or "document").name; ext=Path(name).suffix.lower()
- if ext not in ALLOWED: raise HTTPException(415,"ارفع صورة أو PDF أو DOCX")
- ident=uuid.uuid4().hex; target=FILES/(ident+ext)
- with target.open("wb") as out: shutil.copyfileobj(file.file,out)
+async def upload(files: list[UploadFile] = File(...)):
+ if not files: raise HTTPException(400,"اختر صورة واحدة على الأقل")
+ if len(files)>25: raise HTTPException(400,"يمكن رفع 25 صورة كحد أقصى للمستند الواحد")
+ ident=uuid.uuid4().hex; saved=[]; texts=[]
  try:
-  text=extract(target,ext)
-  meta=detect_metadata(text,name)
+  for i,up in enumerate(files,1):
+   name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
+   if ext not in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}:
+    raise HTTPException(415,"ارفع صوراً فقط، ويمكن اختيار عدة صور للمستند نفسه")
+   target=FILES/(ident+"-"+str(i)+ext)
+   with target.open("wb") as out: shutil.copyfileobj(up.file,out)
+   saved.append({"filename":name,"stored":target.name,"page":i})
+   page_text=extract(target,ext)
+   texts.append("[الصورة / الصفحة "+str(i)+"]\\n"+page_text)
+  text="\\n\\n".join(texts)
+  meta=detect_metadata(text," ".join(x["filename"] for x in saved))
+ except HTTPException:
+  for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
+  raise
  except Exception as e:
-  target.unlink(missing_ok=True); raise HTTPException(422,"تعذرت قراءة المستند: "+str(e))
- d={"id":ident,"title":meta["subject"] or name,"filename":name,**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip())}
+  for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
+  raise HTTPException(422,"تعذرت قراءة الصور: "+str(e))
+ d={"id":ident,"title":meta["subject"] or saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,"page_count":len(saved),**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip())}
  items=rows(); items.insert(0,d); save(items)
  return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text)}
+
 @app.get("/api/file/{ident}")
-def get_file(ident:str,download:int=0):
+def get_file(ident:str,download:int=0,page:int=1):
  d=next((x for x in rows() if x["id"]==ident),None)
  if not d: raise HTTPException(404,"غير موجود")
- p=FILES/(ident+Path(d["filename"]).suffix.lower())
- if not p.exists(): raise HTTPException(404,"الملف غير متاح")
- return FileResponse(p,filename=d["filename"],content_disposition_type="attachment" if download else "inline")
+ group=d.get("files") or [{"filename":d["filename"],"stored":ident+Path(d["filename"]).suffix.lower(),"page":1}]
+ existing=[FILES/x["stored"] for x in group if (FILES/x["stored"]).exists()]
+ if not existing: raise HTTPException(404,"الملفات غير متاحة")
+ if download:
+  archive=BASE/(ident+".zip")
+  with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as z:
+   for entry,p in zip(group, [FILES/x["stored"] for x in group]):
+    if p.exists(): z.write(p,arcname=entry["filename"])
+  return FileResponse(archive,filename=(d.get("number") or "document")+"-pages.zip",media_type="application/zip")
+ entry=group[min(max(page-1,0),len(group)-1)]
+ p=FILES/entry["stored"]
+ if not p.exists(): raise HTTPException(404,"الصورة غير متاحة")
+ return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
 @app.get("/api/ask")
 def ask(q:str):
  items=[]
