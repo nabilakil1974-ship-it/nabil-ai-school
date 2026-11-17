@@ -273,7 +273,7 @@ async def start_retry_worker():
 
 def upload_result(d, text="", message=None, duplicate=False):
  public={k:v for k,v in d.items() if k not in {"text","ocr_errors"}}
- return {"ok":True,"message":message or "تم حفظ الصور وتسجيل حالة المعالجة.","document":public,
+ return {"ok":d.get("drive_status")=="saved","message":message or "تم حفظ الصور وتسجيل حالة المعالجة.","document":public,
          "extracted_characters":len(text),"extracted_text":text,
          "ocr_status":d.get("processing_status","pending"),
          "processing_status":d.get("processing_status","pending"),
@@ -322,6 +322,7 @@ async def upload(files: list[UploadFile] = File(...)):
     if not uploaded or not uploaded.get("id"): raise RuntimeError("لم يؤكد Google Drive حفظ إحدى الصفحات")
     drive_files.append({"id":uploaded["id"],"name":uploaded["name"],
                         "webViewLink":uploaded.get("webViewLink"),"page":entry["page"]})
+    d["drive_files"]=list(drive_files); items[0]=d; save(items)
    d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id
    d["drive_status"]="saved"; d["processing_status"]="queued"
    items[0]=d; save(items)
