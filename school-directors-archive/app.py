@@ -68,3 +68,7 @@ def ask(q:str):
   score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
   if score: items.append({"title":d["title"],"number":d["number"],"date":d["date"],"url":d["url"],"score":score,"text":d["text"][:900]})
  return {"question":q,"results":sorted(items,key=lambda x:x["score"],reverse=True)[:8],"notice":"تحقق من المستند الأصلي قبل اعتماد أي معلومة."}
+
+@app.get("/")
+def home():
+ return FileResponse(Path(__file__).parent/"index.html")
