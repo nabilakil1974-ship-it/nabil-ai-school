@@ -117,15 +117,44 @@ def rows():
  try: return json.loads(INDEX.read_text(encoding="utf-8"))
  except: return []
 def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),encoding="utf-8")
-def ocr(path):
- img=Image.open(path)
+def ocr_image(img):
  img=ImageOps.exif_transpose(img)
  # Keep OCR workload small enough for the current low-memory CPU instance.
- img.thumbnail((1100,1500))
+ img.thumbnail((1600,2200))
  img=ImageOps.grayscale(img)
  img=ImageOps.autocontrast(img)
- # Arabic and English cover the common official-document text; avoid the slower three-language pass.
+ # Tesseract Arabic + English is installed in the archive Docker image.
  return pytesseract.image_to_string(img,lang="ara+eng",config="--oem 1 --psm 6 -c preserve_interword_spaces=1",timeout=22)
+
+def ocr(path):
+ return ocr_image(Image.open(path))
+
+def fallback_ocr_images(images):
+ texts=[]
+ for index,image in enumerate(images,1):
+  data=image.get("bytes")
+  if not data: continue
+  try:
+   page_text=ocr_image(Image.open(io.BytesIO(data))).strip()
+  except Exception as exc:
+   logger.exception("local OCR failed page=%s",index)
+   page_text="[تعذر OCR لهذه الصفحة: "+str(exc)[:160]+"]"
+  texts.append("[صفحة "+str(index)+"]\\n"+page_text)
+ full_text="\\n\\n".join(texts).strip()
+ meta=detect_metadata(full_text,"مستند")
+ return {
+  "document_type":meta.get("category",""),
+  "document_number":meta.get("number",""),
+  "document_date":meta.get("date",""),
+  "issuer":meta.get("issuer",""),
+  "subject":meta.get("subject",""),
+  "full_text":full_text,
+  "referenced_decisions":[],
+  "field_confidence":{},
+  "data_verified":False,
+  "review_notes":"اُستخرج النص محلياً بواسطة Tesseract OCR بعد تعذر Gemini. يلزم تدقيق البيانات الوصفية.",
+  "reader":"tesseract"
+}
 
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
@@ -175,7 +204,7 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","document_reader":"Gemini Vision","gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
+def health(): return {"status":"ok","document_reader":"Gemini Vision with local Tesseract Arabic/English OCR fallback","local_ocr_available":True,"gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
 @app.get("/auth/google")
 def google_auth():
  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
@@ -261,7 +290,11 @@ def retry_pending_documents():
     mime=mimetypes.guess_type(remote.get("name",""))[0] or "image/jpeg"
     logger.info("downloaded document=%s page=%s bytes=%s mime=%s",d.get("id"),remote.get("page"),len(payload),mime)
     images.append({"bytes":payload,"mime_type":mime})
-   extracted=analyze_document_images(images)
+   try:
+    extracted=analyze_document_images(images)
+   except Exception as gemini_error:
+    logger.warning("Gemini unavailable; using local OCR document=%s error=%s",d.get("id"),str(gemini_error)[:300])
+    extracted=fallback_ocr_images(images)
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
    date=str(extracted.get("document_date") or "").strip()
@@ -276,8 +309,9 @@ def retry_pending_documents():
              "field_confidence":extracted.get("field_confidence") or {},
              "review_notes":str(extracted.get("review_notes") or ""),
              "data_verified":verified,"review_required":not verified,
-             "gemini_status":"complete" if full_text else "needs_review",
-             "processing_status":"complete" if verified and full_text else "needs_review",
+             "gemini_status":"complete" if extracted.get("reader")!="tesseract" and full_text else ("fallback_ocr" if full_text else "needs_review"),
+             "reader":extracted.get("reader","gemini"),
+             "processing_status":"complete" if verified and full_text else ("needs_review" if full_text else "pending_ai"),
              "processed_at":datetime.now(timezone.utc).isoformat()})
    duplicate=find_duplicate(items,number,date,subject,exclude_id=d.get("id"))
    if duplicate:
@@ -379,9 +413,13 @@ async def upload(files: list[UploadFile] = File(...)):
    items[0]=d; save(items)
    return upload_result(d,message="لم يكتمل تأكيد حفظ كل الصور في Google Drive؛ لم نبدأ التحليل حتى لا نفقد صفحات المستند.")
 
-  # Gemini reads the original image bytes in their upload order. No Tesseract call is made.
+  # Try Gemini first, then fall back to the already-installed local Arabic/English OCR.
   try:
-   extracted=analyze_document_images(image_payloads)
+   try:
+    extracted=analyze_document_images(image_payloads)
+   except Exception as gemini_error:
+    logger.warning("Gemini unavailable; using local OCR upload=%s error=%s",ident,str(gemini_error)[:300])
+    extracted=fallback_ocr_images(image_payloads)
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
    date=str(extracted.get("document_date") or "").strip()
@@ -396,11 +434,14 @@ async def upload(files: list[UploadFile] = File(...)):
              "text":full_text,"referenced_decisions":extracted.get("referenced_decisions") or [],
              "field_confidence":confidence,"review_notes":str(extracted.get("review_notes") or ""),
              "data_verified":verified,"review_required":not verified,
-             "gemini_status":"complete" if full_text else "needs_review",
+             "gemini_status":"complete" if extracted.get("reader")!="tesseract" and full_text else ("fallback_ocr" if full_text else "needs_review"),
+             "reader":extracted.get("reader","gemini"),
              "processing_status":"complete" if verified and full_text else "needs_review",
              "processed_at":datetime.now(timezone.utc).isoformat()})
    if not full_text:
-    d["processing_message"]="حُفظت الصور، لكن Gemini لم يستخرج نصاً كافياً. المستند بانتظار التحقق."
+    d["processing_message"]="حُفظت الصور، لكن تعذر استخراج النص آلياً؛ المستند محفوظ للمراجعة."
+   elif extracted.get("reader")=="tesseract":
+    d["processing_message"]="تم استخراج نص المستند محلياً وحفظه. راجع رقم المستند وتاريخه وموضوعه قبل اعتماد الفهرسة."
    elif not verified:
     d["processing_message"]="تم استخراج النص، وبعض البيانات غير مؤكدة؛ المستند محفوظ وقيد التحقق."
    else:
