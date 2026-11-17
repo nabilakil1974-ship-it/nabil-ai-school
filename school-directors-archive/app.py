@@ -437,6 +437,26 @@ def get_file(ident:str,download:int=0,page:int=1):
  p=ensure_local_page(d,entry)
  if not p: raise HTTPException(404,"الصورة غير متاحة؛ تحقق من اتصال Google Drive")
  return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
+@app.get("/document/{ident}",response_class=HTMLResponse)
+def document_page(ident:str):
+ d=next((x for x in documents() if x.get("id")==ident),None)
+ if not d: raise HTTPException(404,"المستند غير موجود في الأرشيف")
+ esc=__import__("html").escape
+ title=esc(str(d.get("title") or d.get("subject") or "مستند إداري"))
+ meta=[]
+ for label,key in [("الفئة","category"),("الرقم","number"),("التاريخ","date"),("الجهة","issuer"),("الموضوع","subject")]:
+  value=str(d.get(key) or "").strip()
+  if value: meta.append("<p><b>"+label+":</b> "+esc(value)+"</p>")
+ pages=d.get("files") or [{"filename":d.get("filename","document"),"page":1}]
+ page_count=max(1,len(pages))
+ body_text=esc(str(d.get("text") or ""))
+ return HTMLResponse("""<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>"""+title+""" | NABIL AI</title>
+ <style>body{font-family:Tahoma,Arial;background:#f3f6fa;color:#203246;margin:0;padding:18px}.wrap{max-width:900px;margin:auto}.panel{background:white;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 4px 18px #102a4310}h1{font-size:21px}.meta p{line-height:1.7;margin:6px 0}.viewer{text-align:center}.viewer img{max-width:100%;max-height:72vh;object-fit:contain;border:1px solid #ddd;border-radius:8px}.controls{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:14px}.controls button,a{background:#1769aa;color:white;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font-weight:bold}.controls button:disabled{opacity:.4}.text{white-space:pre-wrap;line-height:1.9;max-height:420px;overflow:auto;background:#f8fafc;padding:14px;border-radius:10px}.muted{color:#718195}</style>
+ <div class="wrap"><p><a href="/">← العودة إلى الأرشيف</a></p><section class="panel"><h1>"""+title+"""</h1><div class="meta">"""+ "".join(meta)+"""</div></section>
+ <section class="panel viewer"><h2>المستند الأصلي</h2><img id="pageImage" src="/api/file/"""+ident+"""/?page=1" alt="صفحة المستند"><div class="controls"><button id="prev" disabled>الصفحة السابقة</button><span id="pageLabel">الصفحة 1 من """+str(page_count)+"""</span><button id="next" """+("disabled" if page_count<=1 else "")+""">الصفحة التالية</button><a href="/api/file/"""+ident+"""?download=1">تنزيل جميع الصفحات</a></div></section>
+ <section class="panel"><h2>النص المستخرج</h2><div class="text">"""+(body_text or "لم يتوفر نص مستخرج لهذا المستند بعد.")+"""</div></section></div>
+ <script>let p=1;const total="""+str(page_count)+""";const img=document.getElementById('pageImage'),label=document.getElementById('pageLabel'),prev=document.getElementById('prev'),next=document.getElementById('next');function show(){img.src='/api/file/"""+ident+"""/?page='+p;label.textContent='الصفحة '+p+' من '+total;prev.disabled=p===1;next.disabled=p===total}prev.onclick=()=>{if(p>1){p--;show()}};next.onclick=()=>{if(p<total){p++;show()}}</script></html>""")
+
 @app.get("/api/ask")
 def ask(q:str):
  items=[]
