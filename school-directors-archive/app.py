@@ -80,10 +80,11 @@ def save(items): INDEX.write_text(json.dumps(items,ensure_ascii=False,indent=2),
 def ocr(path):
  img=Image.open(path)
  img=ImageOps.exif_transpose(img)
- img.thumbnail((1400,1400))
+ img.thumbnail((2000,2000))
  img=ImageOps.grayscale(img)
  img=ImageOps.autocontrast(img)
- return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--oem 1 --psm 6",timeout=30)
+ # PSM 3 detects page layout more reliably for official letters and multi-column decisions.
+ return pytesseract.image_to_string(img,lang="ara+fra+eng",config="--oem 1 --psm 3 -c preserve_interword_spaces=1",timeout=40)
 def extract(path,ext):
  if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}: return ocr(path)
  if ext==".pdf":
@@ -186,9 +187,13 @@ async def upload(files: list[UploadFile] = File(...)):
     ocr_errors.append({"page":i,"error":str(ocr_error)[:240]})
    texts.append("[الصورة / الصفحة "+str(i)+"]\n"+page_text)
   text="\n\n".join(texts)
+  recognized=re.sub(r"\[الصورة\s*/\sالصفحة\s*\d+\]","",text).strip()
+  if len(recognized)<30:
+   details="؛ ".join("الصفحة "+str(x["page"])+": "+x["error"] for x in ocr_errors)
+   raise HTTPException(422,"لم يتمكن النظام من استخراج نص موثوق من الصور؛ لذلك لم نضف مستنداً وهمياً إلى الأرشيف. احتفظنا بالصور على الخادم. "+(details or "النص المستخرج أقل من الحد الأدنى المطلوب."))
   meta=detect_metadata(text," ".join(x["filename"] for x in saved))
  except HTTPException:
-  for x in saved: (FILES/x["stored"]).unlink(missing_ok=True)
+  # Keep originals for diagnosis/retry, but never publish an unreadable image as an archived document.
   raise
  except Exception as e:
   # Keep uploaded originals even when document processing fails.
