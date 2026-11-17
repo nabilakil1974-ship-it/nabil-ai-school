@@ -39,7 +39,7 @@ def extract(path,ext):
  return ""
 
 def detect_metadata(text, filename):
- clean=[re.sub(r"\\s+"," ",x).strip(" -–—:؛") for x in text.splitlines()]
+ clean=[re.sub(r"\s+"," ",x).strip(" -–—:؛") for x in text.splitlines()]
  clean=[x for x in clean if len(x)>3]
  joined="\n".join(clean[:100])
  # Document number: Arabic and French/English common labels
@@ -51,7 +51,7 @@ def detect_metadata(text, filename):
  ]
  for p in pats:
   m=re.search(p,joined,re.I)
-  if m: number=re.sub(r"\\s+","",m.group(1)); break
+  if m: number=re.sub(r"\s+","",m.group(1)); break
  date=""
  date_patterns=[
   r"([0-3]?[0-9٠-٩]{1,2}\s*[/.-]\s*[01]?[0-9٠-٩]{1,2}\s*[/.-]\s*(?:19|20)?[0-9٠-٩]{2})",
@@ -60,7 +60,7 @@ def detect_metadata(text, filename):
  ]
  for p in date_patterns:
   m=re.search(p,joined,re.I)
-  if m: date=re.sub(r"\\s+"," ",m.group(1)); break
+  if m: date=re.sub(r"\s+"," ",m.group(1)); break
  low=joined.lower()
  if re.search(r"قانون|loi\b|law\b",low): category="قانون"
  elif re.search(r"مرسوم|décret|decret",low): category="مرسوم"
