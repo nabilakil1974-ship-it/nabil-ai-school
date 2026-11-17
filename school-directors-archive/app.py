@@ -1,7 +1,7 @@
-import os, json, uuid, shutil
+import os, json, uuid, shutil, re
 from pathlib import Path
 from datetime import datetime, timezone
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import fitz
@@ -15,7 +15,8 @@ FILES.mkdir(parents=True,exist_ok=True)
 if not INDEX.exists(): INDEX.write_text("[]",encoding="utf-8")
 app=FastAPI(title="NABIL AI School Directors Archive")
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
-ALLOWED={".pdf",".docx",".doc",".png",".jpg",".jpeg",".webp",".tif",".tiff"}
+ALLOWED={".pdf",".docx",".png",".jpg",".jpeg",".webp",".tif",".tiff"}
+
 def rows():
  try: return json.loads(INDEX.read_text(encoding="utf-8"))
  except: return []
@@ -35,22 +36,68 @@ def extract(path,ext):
   return "\n".join(out)
  if ext==".docx":
   d=Document(path); return "\n".join(p.text for p in d.paragraphs)+"\n"+"\n".join(" | ".join(c.text for c in row.cells) for t in d.tables for row in t.rows)
- if ext==".doc": raise ValueError("حوّل ملف DOC القديم إلى DOCX أو PDF.")
  return ""
+
+def detect_metadata(text, filename):
+ clean=[re.sub(r"\\s+"," ",x).strip(" -–—:؛") for x in text.splitlines()]
+ clean=[x for x in clean if len(x)>3]
+ joined="\n".join(clean[:100])
+ # Document number: Arabic and French/English common labels
+ number=""
+ pats=[
+  r"(?:رقم|الرقم)\s*(?:الأساس|الأساسي)?\s*[:：#-]?\s*([0-9٠-٩]+\s*[/\\-]\s*[0-9٠-٩]{2,4}|[0-9٠-٩]{2,})",
+  r"(?:قرار|تعميم|مذكرة|مرسوم|قانون)\s*رقم\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)",
+  r"(?:N[°ºo]|No\\.?|Numéro)\s*[:：#-]?\s*([0-9٠-٩]+(?:\s*[/\\-]\s*[0-9٠-٩]+)?)"
+ ]
+ for p in pats:
+  m=re.search(p,joined,re.I)
+  if m: number=re.sub(r"\\s+","",m.group(1)); break
+ date=""
+ date_patterns=[
+  r"([0-3]?[0-9٠-٩]{1,2}\s*[/.-]\s*[01]?[0-9٠-٩]{1,2}\s*[/.-]\s*(?:19|20)?[0-9٠-٩]{2})",
+  r"([0-3]?[0-9٠-٩]{1,2}\s+(?:كانون الثاني|شباط|آذار|اذار|نيسان|أيار|ايار|حزيران|تموز|آب|اب|أيلول|ايلول|تشرين الأول|تشرين الثاني|كانون الأول)\s+[0-9٠-٩]{4})",
+  r"([0-3]?[0-9]{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+[0-9]{4})"
+ ]
+ for p in date_patterns:
+  m=re.search(p,joined,re.I)
+  if m: date=re.sub(r"\\s+"," ",m.group(1)); break
+ low=joined.lower()
+ if re.search(r"قانون|loi\b|law\b",low): category="قانون"
+ elif re.search(r"مرسوم|décret|decret",low): category="مرسوم"
+ elif re.search(r"قرار|قرار رقم|décision|decision",low): category="قرار"
+ elif re.search(r"تعميم|بلاغ|circulaire",low): category="تعميم"
+ elif re.search(r"كتاب|مذكرة|مراسلة|كتاب رقم|note de service",low): category="كتاب"
+ else: category="غير مصنّف"
+ subject=""
+ # prefer explicit subject/object label
+ for p in [r"(?:الموضوع|موضوعه|الموضوع:|Subject|Objet)\s*[:：-]?\s*(.{8,180})",r"(?:بشأن|حول|المتعلق(?:ة)? ب)\s+(.{8,140})"]:
+  m=re.search(p,joined,re.I)
+  if m: subject=m.group(1).split("\n")[0].strip(); break
+ if not subject:
+  skip=re.compile(r"^(?:الجمهورية اللبنانية|وزارة|المديرية|رقم|التاريخ|تاريخ|قرار|تعميم|مرسوم|قانون|لبنان|République|Ministère|Ministère)",re.I)
+  subject=next((x for x in clean if len(x)>=12 and not skip.search(x)), "")
+ if not subject: subject=Path(filename).stem.replace("_"," ").replace("-"," ")
+ issuer=""
+ m=re.search(r"(وزارة[^\n]{2,70}|المديرية العامة[^\n]{2,70}|République Libanaise[^\n]{0,60})",joined,re.I)
+ if m: issuer=m.group(1).strip()
+ return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
+
 @app.get("/api/health")
 def health(): return {"status":"ok","ocr_languages":"ara+fra+eng"}
 @app.get("/api/documents")
 def documents(): return rows()
 @app.post("/api/upload")
-async def upload(file:UploadFile=File(...),category:str=Form(...),number:str=Form(""),date:str=Form(""),issuer:str=Form(""),subject:str=Form("")):
+async def upload(file:UploadFile=File(...)):
  name=Path(file.filename or "document").name; ext=Path(name).suffix.lower()
- if ext not in ALLOWED: raise HTTPException(415,"نوع الملف غير مدعوم")
+ if ext not in ALLOWED: raise HTTPException(415,"ارفع صورة أو PDF أو DOCX")
  ident=uuid.uuid4().hex; target=FILES/(ident+ext)
  with target.open("wb") as out: shutil.copyfileobj(file.file,out)
- try: text=extract(target,ext)
+ try:
+  text=extract(target,ext)
+  meta=detect_metadata(text,name)
  except Exception as e:
-  target.unlink(missing_ok=True); raise HTTPException(422,"فشل استخراج النص: "+str(e))
- d={"id":ident,"title":name,"filename":name,"category":category,"number":number,"date":date,"issuer":issuer,"subject":subject,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1"}
+  target.unlink(missing_ok=True); raise HTTPException(422,"تعذرت قراءة المستند: "+str(e))
+ d={"id":ident,"title":meta["subject"] or name,"filename":name,**meta,"text":text,"uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,"download":"/api/file/"+ident+"?download=1","review_required":not bool(text.strip())}
  items=rows(); items.insert(0,d); save(items)
  return {"ok":True,"document":{k:v for k,v in d.items() if k!="text"},"extracted_characters":len(text)}
 @app.get("/api/file/{ident}")
@@ -68,7 +115,5 @@ def ask(q:str):
   score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
   if score: items.append({"title":d["title"],"number":d["number"],"date":d["date"],"url":d["url"],"score":score,"text":d["text"][:900]})
  return {"question":q,"results":sorted(items,key=lambda x:x["score"],reverse=True)[:8],"notice":"تحقق من المستند الأصلي قبل اعتماد أي معلومة."}
-
 @app.get("/")
-def home():
- return FileResponse(Path(__file__).parent/"index.html")
+def home(): return FileResponse(Path(__file__).parent/"index.html")
