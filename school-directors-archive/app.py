@@ -233,6 +233,7 @@ def retry_pending_documents():
   return
  items=rows()
  if not items: items=restore_index_from_drive(service)
+ logger.info("retry queue inspected count=%s pending=%s",len(items),sum(1 for x in items if x.get("processing_status")=="pending_ai" and x.get("drive_status")=="saved"))
  changed=False
  now=datetime.now(timezone.utc)
  for d in list(items):
@@ -444,15 +445,20 @@ async def upload(files: list[UploadFile] = File(...)):
   except Exception: pass
   raise HTTPException(500,"تعذرت معالجة الرفع: "+str(e)[:240]+". احتفظ بالصور الأصلية إلى أن تتأكد من ظهورها في الأرشيف وGoogle Drive.")
 def ensure_local_page(d, entry):
- p=FILES/entry["stored"]
+ stored=entry.get("stored") or (d.get("id","document")+Path(entry.get("filename") or d.get("filename","document.jpg")).suffix.lower())
+ p=FILES/stored
  if p.exists(): return p
  drive_files=d.get("drive_files") or []
  page_no=entry.get("page",1)
  remote=next((x for x in drive_files if x.get("page")==page_no),None)
  if not remote and len(drive_files)>=page_no: remote=drive_files[page_no-1]
- if not remote or not remote.get("id"): return None
+ if not remote or not remote.get("id"):
+  logger.error("image unavailable: no Drive file mapping document=%s page=%s",d.get("id"),page_no)
+  return None
  service=drive_service()
- if not service: return None
+ if not service:
+  logger.error("image unavailable: Drive credentials missing document=%s",d.get("id"))
+  return None
  p.parent.mkdir(parents=True,exist_ok=True)
  request=service.files().get_media(fileId=remote["id"])
  with p.open("wb") as fh:
@@ -512,7 +518,7 @@ def document_page(ident:str):
       remote=found[0]
       d={"id":ident,"title":remote.get("name","1001679933.jpg"),
          "filename":remote.get("name","1001679933.jpg"),
-         "files":[{"filename":remote.get("name","1001679933.jpg"),"page":1}],
+         "files":[{"filename":remote.get("name","1001679933.jpg"),"stored":ident+Path(remote.get("name","1001679933.jpg")).suffix.lower(),"page":1}],
          "page_count":1,"number":"","document_number":"","date":"","document_date":"",
          "subject":"","category":"قيد المعالجة","issuer":"","text":"",
          "uploaded_at":remote.get("createdTime") or datetime.now(timezone.utc).isoformat(),
