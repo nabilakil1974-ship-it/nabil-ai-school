@@ -257,7 +257,7 @@ def search_documents(q="", category=""):
   items=rows()
  wanted=normalize_key(category)
  query=normalize_key(q)
- terms=list(dict.fromkeys(normalize_key(part) for part in re.findall(r"[^\\s]+",str(q or "")) if normalize_key(part)))
+ terms=list(dict.fromkeys(normalize_key(part) for part in str(q or "").split() if normalize_key(part)))
  results=[]
  for item in items:
   if not isinstance(item,dict):
