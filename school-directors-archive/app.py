@@ -95,17 +95,25 @@ def restore_index_from_drive(service=None, folder_id=None):
  if isinstance(restored,dict):
   restored=restored.get("documents",restored.get("items",[]))
  if isinstance(restored,list):
-  # Merge durable Drive records with the current runtime index; never let a
-  # partial/local index hide or overwrite older archived documents.
-  merged={str(x.get("id")):x for x in restored if isinstance(x,dict) and x.get("id")}
+  # Drive archive-index.json is the shared source of truth. Merge local-only
+  # fields first, then let Drive win so Gemini's latest OCR/metadata edits are
+  # never overwritten by an older Render-local copy.
+  merged={str(x.get("id")):dict(x) for x in restored if isinstance(x,dict) and x.get("id")}
   for item in rows():
    if isinstance(item,dict) and item.get("id"):
     key=str(item["id"])
     if key in merged:
-     combined=dict(merged[key]); combined.update(item); merged[key]=combined
-    else: merged[key]=item
+     combined=dict(item); combined.update(merged[key]); merged[key]=combined
+    else: merged[key]=dict(item)
   result=list(merged.values())
-  result.sort(key=lambda x:str(x.get("uploaded_at") or ""),reverse=True)
+  for item in result:
+   if item.get("full_text") and not item.get("text"): item["text"]=item["full_text"]
+   if item.get("document_type") and not item.get("category"): item["category"]=category_from_type(item["document_type"])
+   if item.get("document_number") and not item.get("number"): item["number"]=item["document_number"]
+   if item.get("document_date") and not item.get("date"): item["date"]=item["document_date"]
+   if item.get("issuing_authority") and not item.get("issuer"): item["issuer"]=item["issuing_authority"]
+   if item.get("original_url") and not item.get("original_link"): item["original_link"]=item["original_url"]
+  result.sort(key=lambda x:str(x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
   save(result)
   return result
  return rows()
@@ -282,7 +290,7 @@ def search_documents(q="", category=""):
    continue
   searchable=" ".join(str(item.get(key) or "") for key in (
    "title","filename","subject","number","document_number","date","document_date",
-   "issuer","category","document_type","text","referenced_decisions"
+   "issuer","issuing_authority","category","document_type","text","full_text","summary","original_filename","referenced_decisions"
   ))
   haystack=normalize_key(searchable)
   if query and query not in haystack and not any(term in haystack for term in terms):
