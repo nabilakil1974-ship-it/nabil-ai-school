@@ -1,4 +1,4 @@
-import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io, asyncio, logging
+import os, json, uuid, shutil, re, zipfile, hashlib, unicodedata, mimetypes, io, asyncio, logging, time
 from pathlib import Path
 from datetime import datetime, timezone
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -23,7 +23,7 @@ FILES.mkdir(parents=True,exist_ok=True)
 if not INDEX.exists(): INDEX.write_text("[]",encoding="utf-8")
 TOKEN_FILE=BASE/"google-token.json"
 DRIVE_FOLDER_FILE=BASE/"google-drive-folder.json"
-DRIVE_SCOPE=["https://www.googleapis.com/auth/drive.file","openid","https://www.googleapis.com/auth/userinfo.email","https://www.googleapis.com/auth/userinfo.profile"]
+DRIVE_SCOPE=["https://www.googleapis.com/auth/drive.readonly","https://www.googleapis.com/auth/drive.file","openid","https://www.googleapis.com/auth/userinfo.email","https://www.googleapis.com/auth/userinfo.profile"]
 REDIRECT_URI=os.getenv("GOOGLE_REDIRECT_URI","https://nabil-school-directors-archive-api.onrender.com/auth/google/callback")
 
 def google_client_config():
@@ -51,8 +51,18 @@ def google_credentials():
  if not TOKEN_FILE.exists() and os.getenv("GOOGLE_TOKEN_JSON"):
   TOKEN_FILE.write_text(os.environ["GOOGLE_TOKEN_JSON"],encoding="utf-8")
  if not TOKEN_FILE.exists(): return None
- try: return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
- except Exception: return None
+ try:
+  token_data=json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
+  granted=set(token_data.get("scopes") or [])
+  # The previous drive.file-only consent cannot read Gemini-created index files.
+  # Require a one-time reconnect with drive.readonly instead of silently serving an empty archive.
+  if "https://www.googleapis.com/auth/drive.readonly" not in granted:
+   logger.warning("Google Drive reauthorization required: drive.readonly scope is missing")
+   return None
+  return Credentials.from_authorized_user_file(str(TOKEN_FILE),DRIVE_SCOPE)
+ except Exception:
+  logger.exception("Google Drive credentials could not be loaded")
+  return None
 
 def drive_service():
  creds=google_credentials()
@@ -81,53 +91,101 @@ def drive_upload(path, filename, folder_id):
  media=MediaFileUpload(str(path),resumable=True)
  return service.files().create(body={"name":filename,"parents":[folder_id]},media_body=media,fields="id,name,webViewLink,mimeType").execute()
 
-def restore_index_from_drive(service=None, folder_id=None):
+DRIVE_INDEX_CACHE={"items":[],"loaded_at":0.0}
+DRIVE_INDEX_CACHE_TTL=20
+
+def normalize_drive_document(source):
+ item=dict(source)
+ # Gemini may use slightly different field names; normalize them once at the API boundary.
+ aliases={
+  "title":("title","subject","document_title","name","filename","original_filename"),
+  "number":("number","document_number","document_no","reference_number"),
+  "date":("date","document_date","issue_date","issued_at"),
+  "category":("category","document_type","type","classification","document_category"),
+  "issuer":("issuer","issuing_authority","authority","source_authority"),
+  "text":("text","full_text","extracted_text","ocr_text","content_text","body"),
+  "original_url":("original_url","original_link","file_url","drive_url","webViewLink","web_view_link"),
+ }
+ for target,names in aliases.items():
+  if not item.get(target):
+   for name in names:
+    if item.get(name):
+     item[target]=item[name]; break
+ if item.get("text") and not item.get("full_text"): item["full_text"]=item["text"]
+ if item.get("full_text") and not item.get("text"): item["text"]=item["full_text"]
+ if item.get("number") and not item.get("document_number"): item["document_number"]=item["number"]
+ if item.get("date") and not item.get("document_date"): item["document_date"]=item["date"]
+ if item.get("issuer") and not item.get("issuing_authority"): item["issuing_authority"]=item["issuer"]
+ raw_category=str(item.get("category") or "")
+ item["category"]=category_from_type(raw_category)
+ if item["category"]=="غير مصنّف" and raw_category:
+  item["category"]=raw_category
+ if not item.get("title"):
+  item["title"]=item.get("filename") or item.get("subject") or "مستند إداري"
+ # Stable IDs keep links working when Gemini refreshes or reorders the index.
+ drive_id=(item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id") or item.get("id"))
+ if not drive_id:
+  seed="|".join(str(item.get(k) or "") for k in ("original_url","title","number","date"))
+  drive_id=hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
+ item["id"]=str(drive_id)
+ if not item.get("original_url"):
+  fid=item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id")
+  if fid: item["original_url"]="https://drive.google.com/open?id="+str(fid)
+ if item.get("original_url") and not item.get("original_link"):
+  item["original_link"]=item["original_url"]
+ # Allow the existing original-file viewer and ZIP routes to use Drive file IDs.
+ remote_id=item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id")
+ if not remote_id and item.get("original_url"):
+  match=re.search(r"(?:[?&]id=|/d/)([A-Za-z0-9_-]{15,})",str(item["original_url"]))
+  if match: remote_id=match.group(1)
+ if remote_id and not item.get("drive_files"):
+  item["drive_files"]=[{"id":str(remote_id),"name":item.get("filename") or item.get("title") or "document","page":1}]
+ if not item.get("files") and item.get("drive_files"):
+  item["files"]=[{"filename":x.get("name") or item.get("filename") or item.get("title") or "document","page":int(x.get("page") or 1)} for x in item["drive_files"]]
+ if not item.get("filename"):
+  item["filename"]=item.get("original_filename") or item.get("title") or "document"
+ return item
+
+def restore_index_from_drive(service=None, folder_id=None, force=False):
+ now=time.monotonic()
+ if not force and now-DRIVE_INDEX_CACHE["loaded_at"]<DRIVE_INDEX_CACHE_TTL:
+  return DRIVE_INDEX_CACHE["items"]
  service=service or drive_service()
- if not service: return rows()
+ if not service:
+  # Keep the last successful snapshot available during a temporary Drive outage.
+  return DRIVE_INDEX_CACHE["items"] or rows()
  folder_id=folder_id or ensure_drive_folder(service)
  query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
- found=service.files().list(q=query,spaces="drive",fields="files(id)",pageSize=1).execute().get("files",[])
- if not found: return rows()
+ found=service.files().list(q=query,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
+ if not found:
+  DRIVE_INDEX_CACHE.update({"items":[],"loaded_at":now})
+  save([])
+  return []
  raw=service.files().get(fileId=found[0]["id"],alt="media").execute()
- if isinstance(raw,bytes): raw=raw.decode("utf-8")
- # Drive may return parsed JSON data as a dict/list instead of raw text.
+ if isinstance(raw,bytes): raw=raw.decode("utf-8-sig")
+ elif not isinstance(raw,(dict,list)): raw=str(raw).lstrip("\ufeff")
  restored=raw if isinstance(raw,(dict,list)) else json.loads(raw)
  if isinstance(restored,dict):
-  restored=restored.get("documents",restored.get("items",[]))
- if isinstance(restored,list):
-  # Drive archive-index.json is the shared source of truth. Merge local-only
-  # fields first, then let Drive win so Gemini's latest OCR/metadata edits are
-  # never overwritten by an older Render-local copy.
-  merged={str(x.get("id")):dict(x) for x in restored if isinstance(x,dict) and x.get("id")}
-  for item in rows():
-   if isinstance(item,dict) and item.get("id"):
-    key=str(item["id"])
-    if key in merged:
-     combined=dict(item); combined.update(merged[key]); merged[key]=combined
-    else: merged[key]=dict(item)
-  result=list(merged.values())
-  for item in result:
-   if item.get("full_text") and not item.get("text"): item["text"]=item["full_text"]
-   if item.get("document_type") and not item.get("category"): item["category"]=category_from_type(item["document_type"])
-   if item.get("document_number") and not item.get("number"): item["number"]=item["document_number"]
-   if item.get("document_date") and not item.get("date"): item["date"]=item["document_date"]
-   if item.get("issuing_authority") and not item.get("issuer"): item["issuer"]=item["issuing_authority"]
-   if item.get("original_url") and not item.get("original_link"): item["original_link"]=item["original_url"]
-  result.sort(key=lambda x:str(x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
-  save(result)
-  return result
- return rows()
+  restored=restored.get("documents",restored.get("items",restored.get("data",[])))
+ if not isinstance(restored,list):
+  raise ValueError("archive-index.json يجب أن يحتوي قائمة documents أو items")
+ normalized=[]; seen=set()
+ for source in restored:
+  if not isinstance(source,dict): continue
+  item=normalize_drive_document(source)
+  ident=item["id"]
+  if ident in seen: continue
+  seen.add(ident); normalized.append(item)
+ normalized.sort(key=lambda x:str(x.get("date") or x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
+ save(normalized)
+ DRIVE_INDEX_CACHE.update({"items":normalized,"loaded_at":now})
+ logger.info("Drive archive index refreshed: %s documents; index file=%s",len(normalized),found[0]["id"])
+ return normalized
 
 def sync_index_to_drive(items, folder_id):
- service=drive_service()
- if not service: return
- payload=json.dumps(items,ensure_ascii=False,indent=2).encode("utf-8")
- from googleapiclient.http import MediaInMemoryUpload
- query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
- found=service.files().list(q=query,spaces="drive",fields="files(id)",pageSize=1).execute().get("files",[])
- media=MediaInMemoryUpload(payload,mimetype="application/json",resumable=False)
- if found: service.files().update(fileId=found[0]["id"],media_body=media).execute()
- else: service.files().create(body={"name":"archive-index.json","parents":[folder_id]},media_body=media,fields="id").execute()
+ # The Drive index is owned by Gemini. The website is a read-only consumer:
+ # never overwrite Gemini's source-of-truth index with a partial Render snapshot.
+ logger.info("Drive index write skipped: Gemini owns archive-index.json")
 app=FastAPI(title="NABIL AI School Directors Archive")
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
 ALLOWED={".pdf",".docx",".png",".jpg",".jpeg",".webp",".tif",".tiff"}
@@ -228,7 +286,9 @@ def detect_metadata(text, filename):
  return {"number":number,"date":date,"subject":subject[:220],"category":category,"issuer":issuer}
 
 @app.get("/api/health")
-def health(): return {"status":"ok","document_reader":"Gemini Vision with local Tesseract Arabic/English OCR fallback","local_ocr_available":bool(shutil.which("tesseract")) and "ara" in (pytesseract.get_languages(config="") if shutil.which("tesseract") else []),"gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":google_credentials() is not None,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
+def health():
+ token_ok=google_credentials() is not None
+ return {"status":"ok","document_reader":"Gemini indexes on Google Drive; website reads archive-index.json","local_ocr_available":bool(shutil.which("tesseract")) and "ara" in (pytesseract.get_languages(config="") if shutil.which("tesseract") else []),"gemini_configured":bool(os.getenv("GEMINI_API_KEY")),"gemini_model":os.getenv("GEMINI_MODEL","gemini-3.8-flash"),"google_drive_connected":token_ok,"google_drive_reauthorization_required":not token_ok,"google_token_persistence_configured":bool(os.getenv("RENDER_API_KEY")),"google_token_persisted":bool(os.getenv("GOOGLE_TOKEN_JSON"))}
 @app.get("/auth/google")
 def google_auth():
  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,redirect_uri=REDIRECT_URI); url,state=flow.authorization_url(access_type="offline",include_granted_scopes="true",prompt="consent"); return RedirectResponse(url)
@@ -236,17 +296,17 @@ def google_auth():
 def google_callback(request:Request):
  try:
   flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); token_persisted=persist_google_credentials(flow.credentials); service=drive_service(); folder_id=ensure_drive_folder(service)
-  if not rows(): restore_index_from_drive(service,folder_id)
-  sync_index_to_drive(rows(),folder_id)
-  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم إنشاء مجلد NABIL - School Directors Archive وبدء مزامنة فهرس الأرشيف.</p><p>"+("تم حفظ تفويض Google في إعدادات Render الدائمة." if token_persisted else "تنبيه: الاتصال يعمل الآن، لكن حفظ التفويض بعد إعادة النشر غير مفعّل بعد؛ يلزم إعداد RENDER_API_KEY مرة واحدة في Render.")+"</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
+  restore_index_from_drive(service,folder_id,force=True)
+  # Do not write a local/empty index back to Drive; Gemini owns the shared index.
+  return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم ربط Google Drive بصلاحية قراءة الفهرس الذي يحدّثه Gemini. سيقرأ الموقع archive-index.json من مجلد الأرشيف دون تعديل الملف.</p><p>"+("تم حفظ تفويض Google في إعدادات Render الدائمة." if token_persisted else "تنبيه: الاتصال يعمل الآن، لكن حفظ التفويض بعد إعادة النشر غير مفعّل بعد؛ يلزم إعداد RENDER_API_KEY مرة واحدة في Render.")+"</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
 @app.get("/api/documents")
 def documents():
  try:
   return restore_index_from_drive()
  except Exception:
-  logger.exception("Drive index merge failed; serving local archive index")
-  return rows()
+  logger.exception("Drive index read failed; serving last successful snapshot")
+  return DRIVE_INDEX_CACHE["items"] or rows()
 def normalize_key(value):
  value=str(value or "").strip().lower()
  value=value.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹","01234567890123456789"))
@@ -268,7 +328,7 @@ def category_matches(item, category):
   normalize_key("مراسيم وأنظمة"):("مرسوم","نظام"),
  }
  if wanted in groups:
-  return any(normalize_key(term) in value for term in groups[wanted])
+  return value==wanted or any(normalize_key(term) in value for term in groups[wanted])
  return wanted in value
 
 def search_documents(q="", category=""):
@@ -317,12 +377,13 @@ def find_duplicate(items, number, date, subject, exclude_id=None):
  return None
 
 def category_from_type(value):
- v=str(value or "").lower()
+ v=str(value or "").strip().lower()
+ if any(x in v for x in ("نموذج","إفادة","افادة","نموذج وإفادة","form","certificate")): return "نماذج وإفادات"
  if "قانون" in v or "law" in v: return "قانون"
- if "مرسوم" in v or "decree" in v: return "مرسوم"
+ if "مرسوم" in v or "decree" in v or "نظام" in v or "regulation" in v: return "مرسوم"
  if "قرار" in v or "decision" in v: return "قرار"
  if "تعميم" in v or "circulaire" in v: return "تعميم"
- if any(x in v for x in ("كتاب","مذكرة","مراسلة","بلاغ","note")): return "كتاب"
+ if any(x in v for x in ("كتاب","مذكرة","مراسلة","بلاغ","note","letter")): return "كتاب"
  return "غير مصنّف"
 
 def retry_pending_documents():
@@ -657,20 +718,32 @@ def document_page(ident:str):
   if value: meta.append("<p><b>"+label+":</b> "+esc(value)+"</p>")
  pages=d.get("files") or [{"filename":d.get("filename","document"),"page":1}]
  page_count=max(1,len(pages))
- body_text=esc(str(d.get("text") or ""))
+ body_text=esc(str(d.get("text") or d.get("full_text") or ""))
+ original_url=esc(str(d.get("original_url") or d.get("original_link") or ""))
+ if d.get("drive_files"):
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><img id="pageImage" src="/api/file/'+ident+'?page=1" alt="صفحة المستند"><div class="controls"><button id="prev" disabled>الصفحة السابقة</button><span id="pageLabel">الصفحة 1 من '+str(page_count)+'</span><button id="next" '+("disabled" if page_count<=1 else "")+'>الصفحة التالية</button><a href="/api/file/'+ident+'?download=1">تنزيل جميع الصفحات</a></div></section>'
+  viewer_script='<script>let p=1;const total='+str(page_count)+';const img=document.getElementById("pageImage"),label=document.getElementById("pageLabel"),prev=document.getElementById("prev"),next=document.getElementById("next");function show(){img.src="/api/file/'+ident+'?page="+p;label.textContent="الصفحة "+p+" من "+total;prev.disabled=p===1;next.disabled=p===total}prev.onclick=()=>{if(p>1){p--;show()}};next.onclick=()=>{if(p<total){p++;show()}}</script>'
+ elif original_url:
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><p>النسخة الأصلية محفوظة على Google Drive.</p><a href="'+original_url+'" target="_blank" rel="noopener">فتح المستند الأصلي</a></section>'
+  viewer_script=''
+ else:
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><p class="muted">لم يُرفق رابط للنسخة الأصلية في فهرس Drive بعد.</p></section>'
+  viewer_script=''
  return HTMLResponse("""<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>"""+title+""" | NABIL AI</title>
  <style>body{font-family:Tahoma,Arial;background:#f3f6fa;color:#203246;margin:0;padding:18px}.wrap{max-width:900px;margin:auto}.panel{background:white;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 4px 18px #102a4310}h1{font-size:21px}.meta p{line-height:1.7;margin:6px 0}.viewer{text-align:center}.viewer img{max-width:100%;max-height:72vh;object-fit:contain;border:1px solid #ddd;border-radius:8px}.controls{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:14px}.controls button,a{background:#1769aa;color:white;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font-weight:bold}.controls button:disabled{opacity:.4}.text{white-space:pre-wrap;line-height:1.9;max-height:420px;overflow:auto;background:#f8fafc;padding:14px;border-radius:10px}.muted{color:#718195}</style>
  <div class="wrap"><p><a href="/">← العودة إلى الأرشيف</a></p><section class="panel"><h1>"""+title+"""</h1><div class="meta">"""+ "".join(meta)+"""</div></section>
- <section class="panel viewer"><h2>المستند الأصلي</h2><img id="pageImage" src="/api/file/"""+ident+"""?page=1" alt="صفحة المستند"><div class="controls"><button id="prev" disabled>الصفحة السابقة</button><span id="pageLabel">الصفحة 1 من """+str(page_count)+"""</span><button id="next" """+("disabled" if page_count<=1 else "")+""">الصفحة التالية</button><a href="/api/file/"""+ident+"""?download=1">تنزيل جميع الصفحات</a></div></section>
+ """+viewer_section+"""
  <section class="panel"><h2>النص المستخرج</h2><div class="text">"""+(body_text or "لم يتوفر نص مستخرج لهذا المستند بعد.")+"""</div></section></div>
- <script>let p=1;const total="""+str(page_count)+""";const img=document.getElementById('pageImage'),label=document.getElementById('pageLabel'),prev=document.getElementById('prev'),next=document.getElementById('next');function show(){img.src='/api/file/"""+ident+"""?page='+p;label.textContent='الصفحة '+p+' من '+total;prev.disabled=p===1;next.disabled=p===total}prev.onclick=()=>{if(p>1){p--;show()}};next.onclick=()=>{if(p<total){p++;show()}}</script></html>""")
+ """+viewer_script+"""</html>""")
 
 @app.get("/api/ask")
 def ask(q:str):
  items=[]
- for d in rows():
-  body=(d.get("text","")+" "+d.get("subject","")+" "+d.get("title","")).lower(); score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
-  if score: items.append({"title":d["title"],"number":d["number"],"date":d["date"],"url":d["url"],"score":score,"text":d["text"][:900]})
+ for d in documents():
+  body=(str(d.get("text") or d.get("full_text") or "")+" "+str(d.get("subject") or "")+" "+str(d.get("title") or "")).lower()
+  score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
+  if score:
+   items.append({"title":d.get("title") or d.get("subject") or "مستند إداري","number":d.get("number") or d.get("document_number") or "","date":d.get("date") or d.get("document_date") or "","url":d.get("original_url") or d.get("original_link") or ("/document/"+str(d.get("id"))),"score":score,"text":str(d.get("text") or d.get("full_text") or "")[:900]})
  return {"question":q,"results":sorted(items,key=lambda x:x["score"],reverse=True)[:8],"notice":"تحقق من المستند الأصلي قبل اعتماد أي معلومة."}
 @app.get("/")
 def home(): return FileResponse(Path(__file__).parent/"index.html")
