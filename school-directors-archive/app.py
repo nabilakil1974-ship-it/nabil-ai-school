@@ -254,7 +254,9 @@ def category_matches(item, category):
  value=normalize_key(item.get("category") or item.get("document_type") or "")
  groups={
   normalize_key("نماذج وإفادات"):("نموذج","افادة","إفادة"),
+  normalize_key("كتاب"):("كتاب","مذكرة","مراسلة"),
   normalize_key("كتب ومذكرات"):("كتاب","مذكرة","مراسلة"),
+  normalize_key("مرسوم"):("مرسوم","نظام"),
   normalize_key("مراسيم وأنظمة"):("مرسوم","نظام"),
  }
  if wanted in groups:
