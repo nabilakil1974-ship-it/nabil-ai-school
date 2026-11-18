@@ -248,29 +248,39 @@ def normalize_key(value):
  return value
 
 def search_documents(q="", category=""):
- try: items=restore_index_from_drive()
- except Exception: items=rows()
+ # Search the complete extracted text as well as document metadata.
+ # A document matches when ANY searched word appears, not only when every
+ # word is present. This makes a single keyword useful to school directors.
+ try:
+  items=restore_index_from_drive()
+ except Exception:
+  items=rows()
  wanted=normalize_key(category)
  query=normalize_key(q)
- terms=[normalize_key(part) for part in str(q or "").split() if normalize_key(part)]
+ terms=list(dict.fromkeys(normalize_key(part) for part in re.findall(r"[^\\s]+",str(q or "")) if normalize_key(part)))
  results=[]
  for item in items:
+  if not isinstance(item,dict):
+   continue
   item_category=normalize_key(item.get("category") or item.get("document_type") or "")
-  if wanted and wanted not in item_category: continue
+  if wanted and wanted not in item_category:
+   continue
   searchable=" ".join(str(item.get(key) or "") for key in (
-   "title","subject","number","document_number","date","document_date",
+   "title","filename","subject","number","document_number","date","document_date",
    "issuer","category","document_type","text","referenced_decisions"
   ))
   haystack=normalize_key(searchable)
-  if query and query not in haystack and not all(term in haystack for term in terms):
+  if query and query not in haystack and not any(term in haystack for term in terms):
    continue
-  results.append(item)
- return results
+  score=(3 if query and query in haystack else 0)+sum(1 for term in terms if term in haystack)
+  results.append((score,item))
+ results.sort(key=lambda pair:(pair[0],str(pair[1].get("uploaded_at") or "")),reverse=True)
+ return [item for _,item in results]
 
 @app.get("/api/search")
 def api_search(q: str = "", category: str = ""):
- return {"query":q,"category":category,"count":len(search_documents(q,category)),
-         "results":search_documents(q,category)}
+ results=search_documents(q,category)
+ return {"query":q,"category":category,"count":len(results),"results":results}
 
 def find_duplicate(items, number, date, subject, exclude_id=None):
  n,d,sub=normalize_key(number),normalize_key(date),normalize_key(subject)
