@@ -357,11 +357,6 @@ def retry_pending_documents():
    # First persist a local OCR result. This prevents a Gemini 429 or
    # outage from keeping an otherwise readable document in pending_ai forever.
    extracted=fallback_ocr_images(images)
-   if len(str(extracted.get("full_text") or "").strip())<40 and os.getenv("GEMINI_API_KEY"):
-    try:
-     extracted=analyze_document_images(images)
-    except Exception as gemini_error:
-     logger.warning("Gemini enrichment unavailable; keeping local OCR document=%s error=%s",d.get("id"),str(gemini_error)[:300])
    full_text=str(extracted.get("full_text") or "").strip()
    number=str(extracted.get("document_number") or "").strip()
    date=str(extracted.get("document_date") or "").strip()
