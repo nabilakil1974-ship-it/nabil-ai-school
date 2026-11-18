@@ -97,7 +97,7 @@ document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()
 function loadDocs(){return fetch(apiPath('/api/documents'),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('api');return r.json()}).then(data=>{docs=Array.isArray(data)?data:[];document.querySelectorAll('[data-cat]').forEach(b=>{const c=b.dataset.cat;const n=c?docs.filter(d=>categoryMatch(d,c)).length:docs.length;const p=b.querySelector('p');if(p)p.innerHTML=esc(p.textContent.split(' · ')[0])+' · <strong>'+n+'</strong> وثيقة'});render();return docs}).catch(()=>{$('count').textContent='تعذر تحميل الفهرس';$('results').innerHTML='<div class="empty">تعذر الاتصال بخدمة الأرشيف.</div>';throw Error('تعذر تحديث قائمة الأرشيف')})}loadDocs();let selectedImages=[];function showSelected(){$('selectedFiles').textContent=selectedImages.length?'تم اختيار '+selectedImages.length+' ملف':'لم يتم اختيار صور بعد'}$('galleryFiles').addEventListener('change',e=>{selectedImages=Array.from(e.target.files||[]);showSelected()});$('cameraFiles').addEventListener('change',e=>{const picked=Array.from(e.target.files||[]);if(picked.length)selectedImages=selectedImages.concat(picked);showSelected();e.target.value='' });function escStatus(v){return String(v??'غير واضح').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function showSteps(states,details=''){
  const s=$('uploadStatus');s.className='show warning';
- const labels=['رفعت الصور إلى الخادم','Gemini يقرأ الصفحات ويستخرج النص','تحديد رقم المستند','تحديد تاريخ المستند','تحديد موضوعه ومضمونه'];
+ const labels=['استلام الملف والتحقق من صيغته','حفظ النسخة الأصلية في Google Drive','تسجيل المستند في فهرس الأرشيف','تجهيز المستند للاستخراج اليدوي لاحقاً','تحديث قائمة الوثائق على الموقع'];
  s.innerHTML=labels.map((label,i)=>'<div class="step '+(states[i]?'done':'pending')+'">'+(states[i]?'✓ ':'◷ ')+label+'</div>').join('')+(details?'<div class="detail">'+details+'</div>':'');
  s.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -118,14 +118,14 @@ $('uploadForm').addEventListener('submit',e=>{
     showSteps([pct>=100,false,false,false,false],'تم إرسال '+pct+'٪ من الملفات ('+count+' ملف).');
    }
  });
- xhr.upload.addEventListener('load',()=>showSteps([true,false,false,false,false],'وصلت الصور إلى الخادم. الآن يقرأ Gemini الصور ويستخرج النص والبيانات؛ قد يستغرق ذلك بعض الوقت.'));
+ xhr.upload.addEventListener('load',()=>showSteps([true,false,false,false,false],'وصل الملف إلى الخادم. سيُحفظ الأصل ويُسجّل في الفهرس دون تشغيل OCR أو Gemini تلقائياً.'));
  xhr.addEventListener('load',async()=>{
   try{
    let d;try{d=JSON.parse(xhr.responseText)}catch{throw Error('رد الخادم غير مفهوم')}
    if(xhr.status<200||xhr.status>=300||!d.ok)throw Error(d.message||d.detail||'الخادم لم يؤكد حفظ الصور في Google Drive');
    const x=d.document||{}, chars=Number(d.extracted_characters||0), txt=(d.extracted_text||'').trim();
-   const states=[true,true,!!x.number,!!x.date,!!x.subject&&chars>0];
-   const details='<b>رقم المستند:</b> '+escStatus(x.number||'لم يتمكن من تحديده')+'\\n<b>التاريخ:</b> '+escStatus(x.date||'لم يتمكن من تحديده')+'\\n<b>الموضوع:</b> '+escStatus(x.subject||'لم يتمكن من تحديده')+'\\n\\n<b>عدد الأحرف المقروءة:</b> '+chars+'\\n<b>الجهة:</b> '+escStatus(x.issuer||'غير محددة')+'\\n<b>الفئة:</b> '+escStatus(x.category||'غير مصنفة')+'\\n<b>حالة القراءة:</b> '+escStatus(d.ocr_status||'غير محددة');
+   const states=[true,x.drive_status==='saved',!!x.id,x.drive_status==='saved',x.drive_status==='saved'];
+   const details='<b>رقم المستند:</b> '+escStatus(x.number||'يُحدّد عند الاستخراج')+'\\n<b>التاريخ:</b> '+escStatus(x.date||'يُحدّد عند الاستخراج')+'\\n<b>الموضوع:</b> '+escStatus(x.subject||'يُحدّد عند الاستخراج')+'\\n\\n<b>عدد الأحرف المستخرجة:</b> '+chars+'\\n<b>الجهة:</b> '+escStatus(x.issuer||'تُحدّد عند الاستخراج')+'\\n<b>الفئة:</b> '+escStatus(x.category||'قيد التصنيف')+'\\n<b>حالة المعالجة:</b> '+escStatus(d.ocr_status||'بانتظار الاستخراج اليدوي');
    showSteps(states,details);
    const ocrBox=document.createElement('div');ocrBox.innerHTML='<div class="ocr-heading">النص المستخرج من المستند</div><div class="ocr-text" id="fullOcrText"></div><button type="button" class="copy-ocr" id="copyOcrText">نسخ النص المستخرج كاملاً</button>'; $('uploadStatus').appendChild(ocrBox);$('fullOcrText').textContent=txt||'لم يتمكن النظام من استخراج نص من الصور.';$('copyOcrText').addEventListener('click',()=>{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>{$('copyOcrText').textContent='تم نسخ النص'}).catch(()=>{$('copyOcrText').textContent='تعذر النسخ تلقائياً'})}else{$('copyOcrText').textContent='حدد النص وانسخه يدوياً'}});
    $('uploadStatus').className='show '+(chars?'success':'warning');
