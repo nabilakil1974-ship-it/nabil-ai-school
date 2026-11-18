@@ -135,6 +135,9 @@ def normalize_drive_document(source):
   item["original_link"]=item["original_url"]
  # Allow the existing original-file viewer and ZIP routes to use Drive file IDs.
  remote_id=item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id")
+ if not remote_id and item.get("original_url"):
+  match=re.search(r"(?:[?&]id=|/d/)([A-Za-z0-9_-]{15,})",str(item["original_url"]))
+  if match: remote_id=match.group(1)
  if remote_id and not item.get("drive_files"):
   item["drive_files"]=[{"id":str(remote_id),"name":item.get("filename") or item.get("title") or "document","page":1}]
  if not item.get("files") and item.get("drive_files"):
@@ -715,20 +718,32 @@ def document_page(ident:str):
   if value: meta.append("<p><b>"+label+":</b> "+esc(value)+"</p>")
  pages=d.get("files") or [{"filename":d.get("filename","document"),"page":1}]
  page_count=max(1,len(pages))
- body_text=esc(str(d.get("text") or ""))
+ body_text=esc(str(d.get("text") or d.get("full_text") or ""))
+ original_url=esc(str(d.get("original_url") or d.get("original_link") or ""))
+ if d.get("drive_files"):
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><img id="pageImage" src="/api/file/'+ident+'?page=1" alt="صفحة المستند"><div class="controls"><button id="prev" disabled>الصفحة السابقة</button><span id="pageLabel">الصفحة 1 من '+str(page_count)+'</span><button id="next" '+("disabled" if page_count<=1 else "")+'>الصفحة التالية</button><a href="/api/file/'+ident+'?download=1">تنزيل جميع الصفحات</a></div></section>'
+  viewer_script='<script>let p=1;const total='+str(page_count)+';const img=document.getElementById("pageImage"),label=document.getElementById("pageLabel"),prev=document.getElementById("prev"),next=document.getElementById("next");function show(){img.src="/api/file/'+ident+'?page="+p;label.textContent="الصفحة "+p+" من "+total;prev.disabled=p===1;next.disabled=p===total}prev.onclick=()=>{if(p>1){p--;show()}};next.onclick=()=>{if(p<total){p++;show()}}</script>'
+ elif original_url:
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><p>النسخة الأصلية محفوظة على Google Drive.</p><a href="'+original_url+'" target="_blank" rel="noopener">فتح المستند الأصلي</a></section>'
+  viewer_script=''
+ else:
+  viewer_section='<section class="panel viewer"><h2>المستند الأصلي</h2><p class="muted">لم يُرفق رابط للنسخة الأصلية في فهرس Drive بعد.</p></section>'
+  viewer_script=''
  return HTMLResponse("""<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>"""+title+""" | NABIL AI</title>
  <style>body{font-family:Tahoma,Arial;background:#f3f6fa;color:#203246;margin:0;padding:18px}.wrap{max-width:900px;margin:auto}.panel{background:white;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 4px 18px #102a4310}h1{font-size:21px}.meta p{line-height:1.7;margin:6px 0}.viewer{text-align:center}.viewer img{max-width:100%;max-height:72vh;object-fit:contain;border:1px solid #ddd;border-radius:8px}.controls{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:14px}.controls button,a{background:#1769aa;color:white;border:0;border-radius:9px;padding:11px 16px;text-decoration:none;font-weight:bold}.controls button:disabled{opacity:.4}.text{white-space:pre-wrap;line-height:1.9;max-height:420px;overflow:auto;background:#f8fafc;padding:14px;border-radius:10px}.muted{color:#718195}</style>
  <div class="wrap"><p><a href="/">← العودة إلى الأرشيف</a></p><section class="panel"><h1>"""+title+"""</h1><div class="meta">"""+ "".join(meta)+"""</div></section>
- <section class="panel viewer"><h2>المستند الأصلي</h2><img id="pageImage" src="/api/file/"""+ident+"""?page=1" alt="صفحة المستند"><div class="controls"><button id="prev" disabled>الصفحة السابقة</button><span id="pageLabel">الصفحة 1 من """+str(page_count)+"""</span><button id="next" """+("disabled" if page_count<=1 else "")+""">الصفحة التالية</button><a href="/api/file/"""+ident+"""?download=1">تنزيل جميع الصفحات</a></div></section>
+ """+viewer_section+"""
  <section class="panel"><h2>النص المستخرج</h2><div class="text">"""+(body_text or "لم يتوفر نص مستخرج لهذا المستند بعد.")+"""</div></section></div>
- <script>let p=1;const total="""+str(page_count)+""";const img=document.getElementById('pageImage'),label=document.getElementById('pageLabel'),prev=document.getElementById('prev'),next=document.getElementById('next');function show(){img.src='/api/file/"""+ident+"""?page='+p;label.textContent='الصفحة '+p+' من '+total;prev.disabled=p===1;next.disabled=p===total}prev.onclick=()=>{if(p>1){p--;show()}};next.onclick=()=>{if(p<total){p++;show()}}</script></html>""")
+ """+viewer_script+"""</html>""")
 
 @app.get("/api/ask")
 def ask(q:str):
  items=[]
- for d in rows():
-  body=(d.get("text","")+" "+d.get("subject","")+" "+d.get("title","")).lower(); score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
-  if score: items.append({"title":d["title"],"number":d["number"],"date":d["date"],"url":d["url"],"score":score,"text":d["text"][:900]})
+ for d in documents():
+  body=(str(d.get("text") or d.get("full_text") or "")+" "+str(d.get("subject") or "")+" "+str(d.get("title") or "")).lower()
+  score=sum(body.count(w) for w in q.lower().split() if len(w)>2)
+  if score:
+   items.append({"title":d.get("title") or d.get("subject") or "مستند إداري","number":d.get("number") or d.get("document_number") or "","date":d.get("date") or d.get("document_date") or "","url":d.get("original_url") or d.get("original_link") or ("/document/"+str(d.get("id"))),"score":score,"text":str(d.get("text") or d.get("full_text") or "")[:900]})
  return {"question":q,"results":sorted(items,key=lambda x:x["score"],reverse=True)[:8],"notice":"تحقق من المستند الأصلي قبل اعتماد أي معلومة."}
 @app.get("/")
 def home(): return FileResponse(Path(__file__).parent/"index.html")
