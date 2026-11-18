@@ -247,6 +247,20 @@ def normalize_key(value):
  value=re.sub(r"[\s\W_]+","",value,flags=re.UNICODE)
  return value
 
+def category_matches(item, category):
+ wanted=normalize_key(category)
+ if not wanted:
+  return True
+ value=normalize_key(item.get("category") or item.get("document_type") or "")
+ groups={
+  normalize_key("نماذج وإفادات"):("نموذج","افادة","إفادة"),
+  normalize_key("كتب ومذكرات"):("كتاب","مذكرة","مراسلة"),
+  normalize_key("مراسيم وأنظمة"):("مرسوم","نظام"),
+ }
+ if wanted in groups:
+  return any(normalize_key(term) in value for term in groups[wanted])
+ return wanted in value
+
 def search_documents(q="", category=""):
  # Search the complete extracted text as well as document metadata.
  # A document matches when ANY searched word appears, not only when every
@@ -262,8 +276,7 @@ def search_documents(q="", category=""):
  for item in items:
   if not isinstance(item,dict):
    continue
-  item_category=normalize_key(item.get("category") or item.get("document_type") or "")
-  if wanted and wanted not in item_category:
+  if not category_matches(item,category):
    continue
   searchable=" ".join(str(item.get(key) or "") for key in (
    "title","filename","subject","number","document_number","date","document_date",
@@ -613,6 +626,34 @@ def get_file(ident:str,download:int=0,page:int=1):
  p=ensure_local_page(d,entry)
  if not p: raise HTTPException(404,"الصورة غير متاحة؛ تحقق من اتصال Google Drive")
  return FileResponse(p,filename=entry["filename"],content_disposition_type="inline")
+@app.get("/api/category/{category}/download")
+def download_category(category:str):
+ items=[item for item in documents() if category_matches(item,category)]
+ if not items:
+  raise HTTPException(404,"لا توجد وثائق ضمن هذه الفئة")
+ archive=BASE/("category-"+hashlib.sha1(category.encode("utf-8")).hexdigest()[:12]+".zip")
+ added=0
+ used=set()
+ with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as z:
+  for item in items:
+   ident=str(item.get("id") or "")
+   if not ident: continue
+   group=item.get("files") or [{"filename":item.get("filename") or (ident+".pdf"),"stored":ident+Path(item.get("filename") or ".pdf").suffix.lower(),"page":1}]
+   folder=re.sub(r'[\\\\/:*?"<>|]+','_',str(item.get("title") or item.get("subject") or item.get("filename") or ident))[:100]
+   for entry in group:
+    path=ensure_local_page(item,entry)
+    if not path or not path.exists(): continue
+    name=Path(entry.get("filename") or path.name).name
+    arcname=folder+"/"+name
+    if arcname in used:
+     stem=Path(name).stem; suffix=Path(name).suffix; n=2
+     while folder+"/"+stem+"-"+str(n)+suffix in used: n+=1
+     arcname=folder+"/"+stem+"-"+str(n)+suffix
+    used.add(arcname); z.write(path,arcname=arcname); added+=1
+ if not added:
+  raise HTTPException(404,"الملفات الأصلية غير متاحة حالياً؛ تحقق من اتصال Google Drive")
+ return FileResponse(archive,filename="NABIL-"+re.sub(r'[^A-Za-z0-9_-]+','-',category)+"-archive.zip",media_type="application/zip")
+
 @app.get("/document/{ident}",response_class=HTMLResponse)
 def document_page(ident:str):
  items=documents()
