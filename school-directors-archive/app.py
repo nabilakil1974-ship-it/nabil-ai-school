@@ -413,10 +413,8 @@ async def retry_worker():
   except Exception:
    logger.exception("retry worker cycle crashed")
 
-@app.on_event("startup")
-async def start_retry_worker():
- logger.info("starting archive retry worker")
- asyncio.create_task(retry_worker())
+# Automatic retry worker intentionally disabled: extraction is user-triggered
+# so uploads do not consume Gemini quota or background compute.
 
 def upload_result(d, text="", message=None, duplicate=False):
  public={k:v for k,v in d.items() if k not in {"text","ocr_errors"}}
@@ -430,7 +428,7 @@ def upload_result(d, text="", message=None, duplicate=False):
 async def upload(files: list[UploadFile] = File(...)):
  if not files: raise HTTPException(400,"اختر صوراً أو ملف PDF أو Word")
  if len(files)>25: raise HTTPException(400,"يمكن رفع 25 صورة كحد أقصى للمستند الواحد")
- ident=uuid.uuid4().hex; saved=[]; image_payloads=[]; total_bytes=0
+ ident=uuid.uuid4().hex; saved=[]; total_bytes=0
  allowed={".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".tif":"image/tiff",".tiff":"image/tiff",".pdf":"application/pdf",".docx":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
  try:
   extensions=[Path(up.filename or "").suffix.lower() for up in files]
@@ -438,6 +436,7 @@ async def upload(files: list[UploadFile] = File(...)):
    raise HTTPException(415,"الصيغ المدعومة: PDF وWord DOCX وصور JPG وPNG وWEBP وTIFF")
   if any(ext in {".pdf",".docx"} for ext in extensions) and len(files)!=1:
    raise HTTPException(400,"ارفع ملف PDF أو Word منفرداً، أو اختر عدة صور للمستند نفسه")
+  payloads=[]
   for i,up in enumerate(files,1):
    name=Path(up.filename or f"page-{i}.jpg").name; ext=Path(name).suffix.lower()
    content=await up.read()
@@ -445,40 +444,57 @@ async def upload(files: list[UploadFile] = File(...)):
    if len(content)>18*1024*1024: raise HTTPException(413,"حجم الملف الواحد يتجاوز 18 ميغابايت")
    total_bytes+=len(content)
    if total_bytes>18*1024*1024: raise HTTPException(413,"الحجم الإجمالي يتجاوز 18 ميغابايت")
-   target=FILES/(ident+"-"+str(i)+ext)
-   target.write_bytes(content)
-   saved.append({"filename":name,"stored":target.name,"page":i})
-   if ext in {".png",".jpg",".jpeg",".webp",".tif",".tiff"}:
-    image_payloads.append({"bytes":content,"mime_type":allowed[ext]})
-   elif ext==".pdf":
-    try:
-     pdf=fitz.open(stream=content,filetype="pdf")
-     if len(pdf)>25: raise HTTPException(413,"ملف PDF يتجاوز 25 صفحة")
-     for page_no,page in enumerate(pdf,1):
-      pix=page.get_pixmap(matrix=fitz.Matrix(1.6,1.6),alpha=False)
-      image_payloads.append({"bytes":pix.tobytes("jpeg"),"mime_type":"image/jpeg"})
-    except HTTPException: raise
-    except Exception as exc: raise HTTPException(415,"تعذر فتح ملف PDF: "+str(exc)[:120])
-  page_count=len(image_payloads) if image_payloads else 1
+   payloads.append({"filename":name,"extension":ext,"content":content,"page":i})
+  # Validate PDFs before writing anything to local storage or Google Drive.
+  if payloads[0]["extension"]==".pdf":
+   try:
+    pdf=fitz.open(stream=payloads[0]["content"],filetype="pdf")
+    if len(pdf)>25: raise HTTPException(413,"ملف PDF يتجاوز 25 صفحة")
+    page_count=len(pdf)
+   except HTTPException: raise
+   except Exception as exc: raise HTTPException(415,"تعذر فتح ملف PDF: "+str(exc)[:120])
+  else:
+   page_count=len(payloads)
+  # Hashing is local and free: no Gemini/API/OCR request is made.
+  digest=hashlib.sha256()
+  file_hashes=[]
+  for item in payloads:
+   file_hash=hashlib.sha256(item["content"]).hexdigest()
+   file_hashes.append(file_hash)
+   digest.update(len(item["content"]).to_bytes(8,"big"))
+   digest.update(item["content"])
+  content_hash=digest.hexdigest()
+  try: items=restore_index_from_drive()
+  except Exception: items=rows()
+  duplicate=next((item for item in items if isinstance(item,dict) and (
+   item.get("content_sha256")==content_hash or
+   (len(file_hashes)==1 and item.get("file_sha256")==file_hashes[0])
+  )),None)
+  if duplicate:
+   # Do not write a local copy, upload to Drive, or create a duplicate index row.
+   return upload_result(duplicate,message="هذا الملف موجود مسبقاً في الأرشيف؛ لم نرفع نسخة جديدة ولم نستهلك أي خدمة OCR أو Gemini.",duplicate=True)
+  for item in payloads:
+   target=FILES/(ident+"-"+str(item["page"])+item["extension"])
+   target.write_bytes(item["content"])
+   saved.append({"filename":item["filename"],"stored":target.name,"page":item["page"],"sha256":file_hashes[item["page"]-1]})
   d={"id":ident,"title":saved[0]["filename"],"filename":saved[0]["filename"],"files":saved,
      "page_count":page_count,"number":"","document_number":"","date":"","document_date":"",
      "subject":"","category":"قيد المعالجة","issuer":"","text":"",
      "uploaded_at":datetime.now(timezone.utc).isoformat(),"url":"/api/file/"+ident,
      "download":"/api/file/"+ident+"?download=1","review_required":True,
      "processing_status":"saving_to_drive","drive_status":"pending",
-     "referenced_decisions":[],"schools":[],"upload_sources":[]}
-  try: items=restore_index_from_drive()
-  except Exception: items=rows()
+     "content_sha256":content_hash,"file_sha256":file_hashes[0] if len(file_hashes)==1 else "",
+     "file_sha256s":file_hashes,"reader":"manual_extraction_pending",
+     "gemini_status":"not_requested","referenced_decisions":[],"schools":[],"upload_sources":[]}
   items.insert(0,d); save(items)
-
-  # The original images must reach Drive before any AI call.
+  # Store the original only. Extraction is deliberately left for the user's
+  # manual Gemini/Drive workflow; no paid AI, OCR, or background retry is started.
   service=drive_service()
   if not service:
    d["drive_status"]="not_connected"; d["processing_status"]="pending_storage"
-   d["processing_message"]="الصور محفوظة مؤقتاً على الخادم، لكن لم يتم تأكيد حفظها في Google Drive. أعد ربط Drive."
+   d["processing_message"]="حُفظ الملف مؤقتاً على الخادم فقط؛ لم يتأكد حفظه في Google Drive. أعد ربط Drive."
    items[0]=d; save(items)
    return upload_result(d,message=d["processing_message"])
-
   try:
    folder_id=ensure_drive_folder(service); drive_files=[]
    for entry in saved:
@@ -488,105 +504,26 @@ async def upload(files: list[UploadFile] = File(...)):
                         "webViewLink":uploaded.get("webViewLink"),"page":entry["page"]})
     d["drive_files"]=list(drive_files); items[0]=d; save(items)
    d["drive_files"]=drive_files; d["drive_folder_id"]=folder_id
-   d["drive_status"]="saved"; d["processing_status"]="queued"
+   d["drive_status"]="saved"; d["processing_status"]="pending_manual_ocr"
+   d["processing_message"]="تم حفظ الأصل في Google Drive. لم نشغّل Gemini أو OCR تلقائياً؛ يمكنك طلب استخراجه يدوياً لاحقاً."
    items[0]=d; save(items)
    sync_index_to_drive(items,folder_id)
+   return upload_result(d,message=d["processing_message"])
   except Exception as drive_error:
    d["drive_status"]="partial"; d["processing_status"]="pending_storage"
    d["drive_error"]=str(drive_error)[:300]
+   d["processing_message"]="لم يكتمل تأكيد حفظ كل صفحات الأصل في Google Drive؛ لم نشغّل أي تحليل آلي."
    items[0]=d; save(items)
-   return upload_result(d,message="لم يكتمل تأكيد حفظ كل الصور في Google Drive؛ لم نبدأ التحليل حتى لا نفقد صفحات المستند.")
-
-  # Read images/PDF with Gemini Vision and local OCR fallback; extract DOCX text locally.
-  try:
-   if Path(saved[0]["filename"]).suffix.lower()==".docx":
-    full_text=extract(FILES/saved[0]["stored"],".docx").strip()
-    meta=detect_metadata(full_text,saved[0]["filename"])
-    extracted={"document_number":meta.get("number",""),"document_date":meta.get("date",""),
-      "subject":meta.get("subject",""),"issuer":meta.get("issuer",""),
-      "document_type":meta.get("category",""),"full_text":full_text,
-      "data_verified":False,"reader":"docx","field_confidence":{},
-      "review_notes":"تم استخراج نص ملف Word محلياً؛ راجع البيانات الوصفية قبل اعتمادها."}
-   else:
-    try:
-     extracted=analyze_document_images(image_payloads)
-    except Exception as gemini_error:
-     logger.warning("Gemini unavailable; using local OCR upload=%s error=%s",ident,str(gemini_error)[:300])
-     if Path(saved[0]["filename"]).suffix.lower()==".pdf":
-      local_text=extract(FILES/saved[0]["stored"],".pdf").strip()
-      meta=detect_metadata(local_text,saved[0]["filename"])
-      extracted={"document_number":meta.get("number",""),"document_date":meta.get("date",""),
-       "subject":meta.get("subject",""),"issuer":meta.get("issuer",""),
-       "document_type":meta.get("category",""),"full_text":local_text,
-       "data_verified":False,"reader":"tesseract","field_confidence":{},
-       "review_notes":"تم استخراج نص PDF محلياً؛ راجع البيانات الوصفية قبل اعتمادها."}
-     else:
-      extracted=fallback_ocr_images(image_payloads)
-   full_text=str(extracted.get("full_text") or "").strip()
-   number=str(extracted.get("document_number") or "").strip()
-   date=str(extracted.get("document_date") or "").strip()
-   subject=str(extracted.get("subject") or "").strip()
-   issuer=str(extracted.get("issuer") or "").strip()
-   doc_type=str(extracted.get("document_type") or "").strip()
-   confidence=extracted.get("field_confidence") if isinstance(extracted.get("field_confidence"),dict) else {}
-   verified=bool(extracted.get("data_verified")) and bool(number and date and subject)
-   d.update({"title":subject or saved[0]["filename"],"number":number,"document_number":number,
-             "date":date,"document_date":date,"subject":subject,"issuer":issuer,
-             "category":category_from_type(doc_type),"document_type":doc_type,
-             "text":full_text,"referenced_decisions":extracted.get("referenced_decisions") or [],
-             "field_confidence":confidence,"review_notes":str(extracted.get("review_notes") or ""),
-             "data_verified":verified,"review_required":not verified,
-             "gemini_status":"complete" if extracted.get("reader")!="tesseract" and full_text else ("fallback_ocr" if full_text else "needs_review"),
-             "reader":extracted.get("reader","gemini"),
-             "processing_status":"complete" if verified and full_text else "needs_review",
-             "processed_at":datetime.now(timezone.utc).isoformat()})
-   if not full_text:
-    d["processing_message"]="حُفظت الصور، لكن تعذر استخراج النص آلياً؛ المستند محفوظ للمراجعة."
-   elif extracted.get("reader")=="tesseract":
-    d["processing_message"]="تم استخراج نص المستند محلياً وحفظه. راجع رقم المستند وتاريخه وموضوعه قبل اعتماد الفهرسة."
-   elif not verified:
-    d["processing_message"]="تم استخراج النص، وبعض البيانات غير مؤكدة؛ المستند محفوظ وقيد التحقق."
-   else:
-    d["processing_message"]="تمت قراءة المستند وفهرسته بواسطة Gemini."
-   duplicate=find_duplicate(items,number,date,subject,exclude_id=ident)
-   if duplicate:
-    duplicate.setdefault("duplicate_uploads",[]).append({
-      "uploaded_at":d["uploaded_at"],"drive_files":drive_files,"page_count":len(saved),
-      "source_school":None,"upload_id":ident})
-    duplicate["last_uploaded_at"]=d["uploaded_at"]
-    items=[x for x in items if x.get("id")!=ident]
-    d=duplicate
-    duplicate_flag=True
-    message="المستند موجود مسبقاً؛ احتفظنا بصور الرفع الجديد وربطناها بالسجل نفسه."
-   else:
-    items[0]=d; duplicate_flag=False; message=d["processing_message"]
-   save(items)
-   try: sync_index_to_drive(items,folder_id)
-   except Exception as sync_error: d["index_sync_warning"]=str(sync_error)[:240]
-   return upload_result(d,full_text,message,duplicate_flag)
-  except GeminiNotConfigured as ai_error:
-   d["gemini_status"]="not_configured"; d["processing_status"]="pending_ai"
-   d["processing_message"]="تم حفظ الصور الأصلية في Google Drive. يلزم ضبط GEMINI_API_KEY في Render لبدء القراءة."
-  except Exception as ai_error:
-   d["gemini_status"]="failed"; d["processing_status"]="pending_ai"
-   d["retry_count"]=0; d["next_retry_at"]=(datetime.now(timezone.utc)+__import__("datetime").timedelta(seconds=60)).isoformat()
-   d["gemini_error"]=str(ai_error)[:500]
-   d["processing_message"]="تم حفظ الصور الأصلية في Google Drive، لكن تعذرت قراءة Gemini مؤقتاً. المستند محفوظ بانتظار إعادة المعالجة."
-  items=rows()
-  current=next((x for x in items if x.get("id")==ident),d)
-  current.update(d); save(items)
-  try: sync_index_to_drive(items,folder_id)
-  except Exception: pass
-  return upload_result(d,message=d.get("processing_message"))
+   return upload_result(d,message=d["processing_message"])
  except HTTPException: raise
  except Exception as e:
-  # Never report successful archiving when storage was not confirmed.
   try:
    items=rows(); current=next((x for x in items if x.get("id")==ident),None)
    if current:
     current["processing_status"]="error"; current["processing_error"]=str(e)[:300]; save(items)
   except Exception: pass
-  raise HTTPException(500,"تعذرت معالجة الرفع: "+str(e)[:240]+". احتفظ بالصور الأصلية إلى أن تتأكد من ظهورها في الأرشيف وGoogle Drive.")
+  raise HTTPException(500,"تعذرت معالجة الرفع: "+str(e)[:240]+". احتفظ بالملف الأصلي إلى أن تتأكد من ظهوره في Google Drive.")
+
 def ensure_local_page(d, entry):
  stored=entry.get("stored") or (d.get("id","document")+Path(entry.get("filename") or d.get("filename","document.jpg")).suffix.lower())
  p=FILES/stored
