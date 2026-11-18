@@ -42,6 +42,8 @@ footer{text-align:center;color:#8795a4;padding:22px;font-size:13px}
 </main><footer>NABIL AI · أرشيف مديري المدارس في لبنان</footer>
 <script>
 let docs=[],category='',searchSequence=0;
+const API_BASE='https://nabil-school-directors-archive-api.onrender.com';
+const apiPath=path=>API_BASE+path;
 const $=id=>document.getElementById(id);
 function norm(v){return String(v??'').toLocaleLowerCase('ar').normalize('NFKC')}
 async function render(){
@@ -50,7 +52,7 @@ async function render(){
  $('count').textContent='جارٍ البحث في النصوص المؤرشفة...';
  try{
   const params=new URLSearchParams({q,category});
-  const response=await fetch('/api/search?'+params.toString(),{cache:'no-store'});
+  const response=await fetch(apiPath('/api/search?'+params.toString()),{cache:'no-store'});
   if(!response.ok)throw Error('search api');
   const payload=await response.json();
   if(seq!==searchSequence)return;
@@ -60,7 +62,7 @@ async function render(){
    $('results').innerHTML='<div class="empty">'+(q?'لا توجد نتائج تطابق كلمات البحث في النصوص المستخرجة.':(category?'لا توجد وثائق ضمن هذه الفئة.':'لا توجد وثائق منشورة في الأرشيف حالياً.'))+'</div>';
    return;
   }
-  $('results').innerHTML=found.map(d=>'<article class="doc"><div><h4>'+esc(d.title||d.subject||'مستند إداري')+'</h4><div class="meta">'+[d.category&&'الفئة: '+d.category,d.number&&'الرقم: '+d.number,d.date&&'التاريخ: '+d.date,d.issuer&&'الجهة: '+d.issuer,d.subject&&'الموضوع: '+d.subject,d.page_count>1&&'عدد الصفحات: '+d.page_count].filter(Boolean).map(esc).join(' · ')+'</div></div><div class="doc-actions"><a href="/document/'+encodeURIComponent(d.id)+'">فتح الوثيقة</a><a href="/api/file/'+encodeURIComponent(d.id)+'?download=1">تنزيل</a></div></article>').join('');
+  $('results').innerHTML=found.map(d=>'<article class="doc"><div><h4>'+esc(d.title||d.subject||'مستند إداري')+'</h4><div class="meta">'+[d.category&&'الفئة: '+d.category,d.number&&'الرقم: '+d.number,d.date&&'التاريخ: '+d.date,d.issuer&&'الجهة: '+d.issuer,d.subject&&'الموضوع: '+d.subject,d.page_count>1&&'عدد الصفحات: '+d.page_count].filter(Boolean).map(esc).join(' · ')+'</div></div><div class="doc-actions"><a href="'+apiPath('/document/'+encodeURIComponent(d.id))+'">فتح الوثيقة</a><a href="'+apiPath('/api/file/'+encodeURIComponent(d.id)+'?download=1')+'">تنزيل</a></div></article>').join('');
  }catch(error){
   if(seq!==searchSequence)return;
   $('count').textContent='تعذر تنفيذ البحث';
@@ -73,7 +75,7 @@ $('searchBtn').addEventListener('click',()=>{render();$('results').scrollIntoVie
 $('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();render();$('results').scrollIntoView({behavior:'smooth',block:'start'})}});
 $('q').addEventListener('input',render);
 document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.cat;document.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('active',x===b));render();$('results').scrollIntoView({behavior:'smooth',block:'start'})}));
-function loadDocs(){return fetch('/api/documents',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('api');return r.json()}).then(data=>{docs=Array.isArray(data)?data:[];document.querySelectorAll('[data-cat]').forEach(b=>{const c=b.dataset.cat;const n=c?docs.filter(d=>norm(d.category).includes(norm(c))).length:docs.length;const p=b.querySelector('p');if(p)p.innerHTML=esc(p.textContent.split(' · ')[0])+' · <strong>'+n+'</strong> وثيقة'});render();return docs}).catch(()=>{$('count').textContent='تعذر تحميل الفهرس';$('results').innerHTML='<div class="empty">تعذر الاتصال بخدمة الأرشيف.</div>';throw Error('تعذر تحديث قائمة الأرشيف')})}loadDocs();let selectedImages=[];function showSelected(){$('selectedFiles').textContent=selectedImages.length?'تم اختيار '+selectedImages.length+' ملف':'لم يتم اختيار صور بعد'}$('galleryFiles').addEventListener('change',e=>{selectedImages=Array.from(e.target.files||[]);showSelected()});$('cameraFiles').addEventListener('change',e=>{const picked=Array.from(e.target.files||[]);if(picked.length)selectedImages=selectedImages.concat(picked);showSelected();e.target.value='' });function escStatus(v){return String(v??'غير واضح').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function loadDocs(){return fetch(apiPath('/api/documents'),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('api');return r.json()}).then(data=>{docs=Array.isArray(data)?data:[];document.querySelectorAll('[data-cat]').forEach(b=>{const c=b.dataset.cat;const n=c?docs.filter(d=>norm(d.category).includes(norm(c))).length:docs.length;const p=b.querySelector('p');if(p)p.innerHTML=esc(p.textContent.split(' · ')[0])+' · <strong>'+n+'</strong> وثيقة'});render();return docs}).catch(()=>{$('count').textContent='تعذر تحميل الفهرس';$('results').innerHTML='<div class="empty">تعذر الاتصال بخدمة الأرشيف.</div>';throw Error('تعذر تحديث قائمة الأرشيف')})}loadDocs();let selectedImages=[];function showSelected(){$('selectedFiles').textContent=selectedImages.length?'تم اختيار '+selectedImages.length+' ملف':'لم يتم اختيار صور بعد'}$('galleryFiles').addEventListener('change',e=>{selectedImages=Array.from(e.target.files||[]);showSelected()});$('cameraFiles').addEventListener('change',e=>{const picked=Array.from(e.target.files||[]);if(picked.length)selectedImages=selectedImages.concat(picked);showSelected();e.target.value='' });function escStatus(v){return String(v??'غير واضح').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function showSteps(states,details=''){
  const s=$('uploadStatus');s.className='show warning';
  const labels=['رفعت الصور إلى الخادم','Gemini يقرأ الصفحات ويستخرج النص','تحديد رقم المستند','تحديد تاريخ المستند','تحديد موضوعه ومضمونه'];
@@ -89,7 +91,7 @@ $('uploadForm').addEventListener('submit',e=>{
  showSteps([false,false,false,false,false],'جارٍ تجهيز '+count+' ملف للإرسال...');
  const fd=new FormData();files.forEach(f=>fd.append('files',f));
  const xhr=new XMLHttpRequest();
- xhr.open('POST','/api/upload');
+ xhr.open('POST',apiPath('/api/upload'));
  xhr.timeout=180000;
  xhr.upload.addEventListener('progress',ev=>{
    if(ev.lengthComputable){
