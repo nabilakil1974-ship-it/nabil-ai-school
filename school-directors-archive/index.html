@@ -6,10 +6,10 @@
 <style>
 :root{--navy:#102a43;--blue:#1769aa;--gold:#d7a94b;--ink:#203246;--muted:#718195;--line:#e2eaf1}
 *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:var(--ink);font-family:Tahoma,Arial,sans-serif}
-header{background:linear-gradient(120deg,#102a43,#1769aa);color:#fff;padding:20px max(5%,calc((100% - 1160px)/2));display:flex;align-items:center;gap:14px}
-.brand{display:flex;align-items:center;gap:13px}.avatar{width:54px;height:54px;border-radius:50%;background:#fff;color:var(--blue);display:grid;place-items:center;font-size:22px;font-weight:bold;border:3px solid var(--gold);flex:none}
+header{position:relative;background:linear-gradient(120deg,#102a43,#1769aa);color:#fff;padding:22px max(5%,calc((100% - 1160px)/2));display:flex;align-items:center;justify-content:center;gap:14px;min-height:150px}
+.brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center}.avatar{width:82px;height:82px;border-radius:50%;object-fit:cover;object-position:center;border:3px solid var(--gold);background:#fff;display:block;flex:none;box-shadow:0 3px 12px #061a2b55}
 h1{font-size:23px;margin:0}header p{margin:6px 0 0;color:#dceaf7;font-size:14px}
-.open{margin-right:auto;border:1px solid #ffffff70;border-radius:999px;padding:8px 13px;font-size:13px}
+.open{position:absolute;left:max(5%,calc((100% - 1160px)/2));top:18px;border:1px solid #ffffff70;border-radius:999px;padding:8px 13px;font-size:13px}
 .wrap{max-width:1160px;margin:27px auto;padding:0 16px}.hero,.panel{background:#fff;border-radius:18px;padding:23px;box-shadow:0 5px 24px #18334b0d;margin-bottom:18px}
 .hero h2{margin:0 0 8px;font-size:24px}.muted{color:var(--muted)}.search{display:flex;gap:9px;margin-top:17px}
 .search input{flex:1;min-width:0;border:1px solid #d5dee8;border-radius:11px;padding:14px;font-size:16px}
@@ -26,7 +26,7 @@ footer{text-align:center;color:#8795a4;padding:22px;font-size:13px}
 @media(max-width:600px){h1{font-size:18px}.search{flex-direction:column}.doc{align-items:flex-start;flex-direction:column}.doc-actions{width:100%}.doc-actions a{flex:1;text-align:center}}
 </style></head>
 <body>
-<header><div class="brand"><div class="avatar">N</div><div><h1>NABIL AI</h1><p>أرشيف مديري المدارس في لبنان</p></div></div><div class="open">منصة مفتوحة للجميع</div></header>
+<header><div class="brand"><img class="avatar" src="https://raw.githubusercontent.com/nabilakil1974-ship-it/nabil-ai-school/school-directors-archive/app/static/nabil-profile.jpg" alt="NABIL AI Avatar"><div><h1>NABIL AI</h1><p>أرشيف مديري المدارس في لبنان</p></div></div><div class="open">منصة مفتوحة للجميع</div></header>
 <main class="wrap">
 <section class="hero"><h2>الأرشيف الإداري والتربوي</h2><div class="muted">ابحث في التعاميم والقرارات والقوانين والمراسيم والكتب الإدارية.</div>
 </section>
