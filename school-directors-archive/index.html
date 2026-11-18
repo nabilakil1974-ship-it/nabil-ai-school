@@ -20,7 +20,7 @@ button{border:0;border-radius:10px;padding:12px 18px;background:var(--blue);colo
 .category-help{margin:-4px 0 14px;color:var(--muted);font-size:13px;line-height:1.8}.tile p strong{color:var(--blue)}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.panel h3{margin:0}
 #count{font-size:13px;color:var(--muted)}.results{display:grid;gap:11px;margin-top:16px}
 .doc{border:1px solid var(--line);border-radius:13px;padding:15px;display:flex;gap:15px;align-items:center;justify-content:space-between}
-.doc h4{margin:0 0 7px;font-size:16px}.meta{font-size:13px;color:var(--muted);line-height:1.8}.doc-actions{display:flex;gap:8px;flex:none}.doc-actions a{display:inline-block;text-decoration:none;background:#edf4fa;color:#14588d;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:bold}
+.doc h4{margin:0 0 7px;font-size:16px}.doc-main{min-width:0;flex:1}.meta{font-size:13px;color:var(--muted);line-height:1.8}.decision-summary{margin:9px 0 0;padding:10px 12px;background:#f5f8fc;border-right:3px solid var(--gold);border-radius:8px;line-height:1.9;font-size:14px}.doc-actions{display:flex;gap:8px;flex:none}.doc-actions a{display:inline-block;text-decoration:none;background:#edf4fa;color:#14588d;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:bold}
 .empty{text-align:center;padding:35px 12px;color:var(--muted);line-height:1.9}\n#uploadStatus{display:none;margin-top:14px;padding:15px;border-radius:12px;line-height:1.9;font-weight:bold;white-space:pre-line}\n#uploadStatus.show{display:block}#uploadStatus .step{padding:7px 0;border-bottom:1px solid #00000012}#uploadStatus .step:last-child{border:0}#uploadStatus .done{font-weight:700}#uploadStatus .pending{opacity:.72}#uploadStatus .detail{margin:8px 0;padding:10px;background:#ffffff99;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400}#uploadStatus .ocr-text{max-height:420px;overflow:auto;direction:rtl;text-align:right;background:#fff;color:#203246;border:1px solid #d5dee8;border-radius:10px;padding:14px;margin-top:12px;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.9}#uploadStatus .ocr-heading{font-weight:bold;margin-top:16px}#uploadStatus .copy-ocr{margin-top:8px;background:#fff;color:#14588d;border:1px solid #b9cfe2}#uploadStatus.success{background:#e8f7ee;color:#176b38;border:1px solid #b8e2c6}#uploadStatus.warning{background:#fff6df;color:#805b00;border:1px solid #f0d78e}#uploadStatus.error{background:#fff0f0;color:#a12626;border:1px solid #efc0c0}button:disabled{opacity:.6;cursor:wait}
 footer{text-align:center;color:#8795a4;padding:22px;font-size:13px}
 @media(max-width:600px){h1{font-size:18px}.search{flex-direction:column}.doc{align-items:flex-start;flex-direction:column}.doc-actions{width:100%}.doc-actions a{flex:1;text-align:center}}
@@ -66,13 +66,22 @@ async function render(){
   if(!response.ok)throw Error('search api');
   const payload=await response.json();
   if(seq!==searchSequence)return;
-  const found=Array.isArray(payload.results)?payload.results:[];
+  let found=Array.isArray(payload.results)?payload.results:[];
+  if(category==='قرار'){
+   found=found.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ar'));
+  }
   $('count').textContent='عدد النتائج: '+found.length;
   if(!found.length){
    $('results').innerHTML='<div class="empty">'+(q?'لا توجد نتائج تطابق كلمات البحث في النصوص المستخرجة.':(category?'لا توجد وثائق ضمن هذه الفئة.':'لا توجد وثائق منشورة في الأرشيف حالياً.'))+'</div>';
    return;
   }
-  $('results').innerHTML=found.map(d=>'<article class="doc"><div><h4>'+esc(d.title||d.subject||'مستند إداري')+'</h4><div class="meta">'+[d.category&&'الفئة: '+d.category,d.number&&'الرقم: '+d.number,d.date&&'التاريخ: '+d.date,d.issuer&&'الجهة: '+d.issuer,d.subject&&'الموضوع: '+d.subject,d.page_count>1&&'عدد الصفحات: '+d.page_count].filter(Boolean).map(esc).join(' · ')+'</div></div><div class="doc-actions"><a href="'+apiPath('/document/'+encodeURIComponent(d.id))+'">فتح الوثيقة</a><a href="'+apiPath('/api/file/'+encodeURIComponent(d.id)+'?download=1')+'">تنزيل</a></div></article>').join('');
+  $('results').innerHTML=found.map(d=>{
+   const isDecision=category==='قرار'||norm(d.category||d.document_type||'').includes(norm('قرار'));
+   const number=d.number||d.document_number||'غير محدد';
+   const synopsis=d.subject||d.summary||d.title||'لم تُسجّل نبذة عن هذا القرار بعد.';
+   const heading=isDecision?'قرار رقم '+number:(d.title||d.subject||'مستند إداري');
+   return '<article class="doc"><div class="doc-main"><h4>'+esc(heading)+'</h4><div class="meta">'+[d.date&&'تاريخ الصدور: '+d.date,d.issuer&&'الجهة المصدرة: '+d.issuer,d.category&&'الفئة: '+d.category,d.page_count>1&&'عدد الصفحات: '+d.page_count].filter(Boolean).map(esc).join(' · ')+'</div>'+(isDecision?'<p class="decision-summary"><strong>نبذة عن القرار:</strong> '+esc(synopsis)+'</p>':'')+'</div><div class="doc-actions"><a href="'+apiPath('/document/'+encodeURIComponent(d.id))+'">عرض المضمون والقرار الأصلي</a><a href="'+apiPath('/api/file/'+encodeURIComponent(d.id)+'?download=1')+'">تنزيل</a></div></article>';
+  }).join('');
  }catch(error){
   if(seq!==searchSequence)return;
   $('count').textContent='تعذر تنفيذ البحث';
