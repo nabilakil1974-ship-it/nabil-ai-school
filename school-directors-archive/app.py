@@ -61,9 +61,12 @@ def google_credentials():
  if not TOKEN_FILE.exists(): return None
  try:
   token_data=json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
-  granted=set(token_data.get("scopes") or [])
-  # The previous drive.file-only consent cannot read Gemini-created index files.
-  # Require a one-time reconnect with drive.readonly instead of silently serving an empty archive.
+  # Google OAuth may return granted scopes in the callback URL while the
+  # serialized Credentials object omits them. Persist the verified scope list
+  # explicitly during callback; accept both serialized and legacy formats here.
+  granted=set(token_data.get("granted_scopes") or token_data.get("scopes") or [])
+  if not granted and token_data.get("scope"):
+   granted=set(str(token_data["scope"]).split())
   if "https://www.googleapis.com/auth/drive.readonly" not in granted:
    logger.warning("Google Drive reauthorization required: drive.readonly scope is missing")
    return None
@@ -325,11 +328,17 @@ def google_callback(request:Request):
   flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI)
   flow.fetch_token(authorization_response=str(request.url))
   creds=flow.credentials
-  granted=set(getattr(creds,"granted_scopes",None) or getattr(creds,"scopes",None) or [])
+  granted=set(getattr(creds,"granted_scopes",None) or [])
+  callback_scopes=set((request.query_params.get("scope") or "").split())
+  if not granted: granted=callback_scopes
+  if not granted: granted=set(getattr(creds,"scopes",None) or [])
   required="https://www.googleapis.com/auth/drive.readonly"
   if required not in granted:
-   raise RuntimeError("لم يمنح Google صلاحية drive.readonly. لم يتم حفظ التفويض؛ أعد المحاولة ووافق على صلاحية قراءة ملفات Drive.")
-  TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
+   raise RuntimeError("لم يؤكد Google منح صلاحية drive.readonly. لم يتم حفظ التفويض؛ أعد المحاولة ووافق على صلاحية قراءة ملفات Drive.")
+  token_payload=json.loads(creds.to_json())
+  token_payload["scopes"]=sorted(granted)
+  token_payload["granted_scopes"]=sorted(granted)
+  TOKEN_FILE.write_text(json.dumps(token_payload),encoding="utf-8")
   token_persisted=persist_google_credentials(creds)
   service=drive_service()
   folder_id=ensure_drive_folder(service)
