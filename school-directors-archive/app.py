@@ -74,13 +74,19 @@ def google_credentials():
 
 def drive_service():
  creds=google_credentials()
- if not creds: return None
- if creds.expired and creds.refresh_token:
+ if not creds:
+  raise RuntimeError("Google Drive غير مفوّض بصلاحية القراءة المطلوبة. افتح /auth/google ووافق على صلاحية drive.readonly.")
+ if creds.expired:
+  if not creds.refresh_token:
+   raise RuntimeError("انتهت صلاحية Google Drive ولا يوجد Refresh Token. يلزم تفويض Google مرة واحدة من /auth/google.")
   from google.auth.transport.requests import Request as GoogleRequest
   creds.refresh(GoogleRequest())
   TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
   persist_google_credentials(creds)
- return build("drive","v3",credentials=creds,cache_discovery=False)
+ service=build("drive","v3",credentials=creds,cache_discovery=False)
+ if service is None:
+  raise RuntimeError("تعذر إنشاء خدمة Google Drive API؛ لم تُنفّذ أي عملية على الملفات.")
+ return service
 
 def ensure_drive_folder(service):
  if DRIVE_FOLDER_FILE.exists():
@@ -316,8 +322,19 @@ def google_auth():
 @app.get("/auth/google/callback")
 def google_callback(request:Request):
  try:
-  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI); flow.fetch_token(authorization_response=str(request.url)); TOKEN_FILE.write_text(flow.credentials.to_json(),encoding="utf-8"); token_persisted=persist_google_credentials(flow.credentials); service=drive_service(); folder_id=ensure_drive_folder(service)
-  restore_index_from_drive(service,folder_id,force=True)
+  flow=Flow.from_client_config(google_client_config(),scopes=DRIVE_SCOPE,state=request.query_params.get("state"),redirect_uri=REDIRECT_URI)
+  flow.fetch_token(authorization_response=str(request.url))
+  creds=flow.credentials
+  granted=set(getattr(creds,"granted_scopes",None) or getattr(creds,"scopes",None) or [])
+  required="https://www.googleapis.com/auth/drive.readonly"
+  if required not in granted:
+   raise RuntimeError("لم يمنح Google صلاحية drive.readonly. لم يتم حفظ التفويض؛ أعد المحاولة ووافق على صلاحية قراءة ملفات Drive.")
+  TOKEN_FILE.write_text(creds.to_json(),encoding="utf-8")
+  token_persisted=persist_google_credentials(creds)
+  service=drive_service()
+  folder_id=ensure_drive_folder(service)
+  restored=restore_index_from_drive(service,folder_id,force=True)
+  logger.info("Google OAuth completed; Drive index documents=%s; durable_token=%s",len(restored),token_persisted)
   # Do not write a local/empty index back to Drive; Gemini owns the shared index.
   return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تم ربط Google Drive بنجاح</h2><p>تم ربط Google Drive بصلاحية قراءة الفهرس الذي يحدّثه Gemini. سيقرأ الموقع archive-index.json من مجلد الأرشيف دون تعديل الملف.</p><p>"+("تم حفظ تفويض Google في إعدادات Render الدائمة." if token_persisted else "تنبيه: الاتصال يعمل الآن، لكن حفظ التفويض بعد إعادة النشر غير مفعّل بعد؛ يلزم إعداد RENDER_API_KEY مرة واحدة في Render.")+"</p><p>يمكنك العودة إلى الموقع.</p><a href='/'>العودة إلى الأرشيف</a></body></html>")
  except Exception as e: return HTMLResponse("<html lang='ar' dir='rtl'><meta charset='utf-8'><body style='font-family:Tahoma;padding:40px'><h2>تعذر ربط Google Drive</h2><p>"+str(e)+"</p><a href='/'>العودة</a></body></html>",status_code=400)
