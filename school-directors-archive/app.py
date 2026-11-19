@@ -11,7 +11,7 @@ from docx import Document
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload, MediaIoBaseUpload
 from gemini_service import analyze_document_images, GeminiError, GeminiNotConfigured
 
 logging.basicConfig(level=logging.INFO)
@@ -122,6 +122,7 @@ def normalize_drive_document(source):
   "issuer":("issuer","issuing_authority","authority","source_authority"),
   "text":("text","full_text","extracted_text","ocr_text","content_text","body"),
   "original_url":("original_url","original_link","file_url","drive_url","webViewLink","web_view_link"),
+  "ocr_url":("ocr_url","ocr_link","text_url","extracted_text_url"),
  }
  for target,names in aliases.items():
   if not item.get(target):
@@ -140,7 +141,7 @@ def normalize_drive_document(source):
  if not item.get("title"):
   item["title"]=item.get("filename") or item.get("subject") or "مستند إداري"
  # Stable IDs keep links working when Gemini refreshes or reorders the index.
- drive_id=(item.get("document_id") or item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id") or item.get("id"))
+ drive_id=(item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id") or item.get("document_id") or item.get("id"))
  if not drive_id:
   seed="|".join(str(item.get(k) or "") for k in ("original_url","title","number","date"))
   drive_id=hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
@@ -163,57 +164,88 @@ def normalize_drive_document(source):
   item["filename"]=item.get("original_filename") or item.get("original_title") or item.get("title") or "document"
  return item
 
+def _read_drive_json_list(service, file_id, label):
+ raw=service.files().get(fileId=file_id,alt="media").execute()
+ if isinstance(raw,bytes): raw=raw.decode("utf-8-sig")
+ elif not isinstance(raw,(dict,list)): raw=str(raw).lstrip("\ufeff")
+ data=raw if isinstance(raw,(dict,list)) else json.loads(raw)
+ if isinstance(data,dict):
+  # Gemini/Claude exporters may wrap the same records under different keys.
+  for key in ("documents","records","items","data","files"):
+   value=data.get(key)
+   if isinstance(value,list):
+    return [x for x in value if isinstance(x,dict)]
+  nested=data.get("manifest") or data.get("archive")
+  if isinstance(nested,dict):
+   for key in ("documents","records","items","data","files"):
+    value=nested.get(key)
+    if isinstance(value,list): return [x for x in value if isinstance(x,dict)]
+  raise ValueError(label+" لا يحتوي قائمة documents/records/items/data/files")
+ if isinstance(data,list): return [x for x in data if isinstance(x,dict)]
+ raise ValueError(label+" ليس JSON صالحاً على شكل قائمة")
+
+def _drive_named_files(service, name, folder_id=None, limit=100):
+ q="name='"+name.replace("'","\\'")+"' and trashed=false"
+ if folder_id: q+=" and '"+folder_id+"' in parents"
+ return service.files().list(q=q,spaces="drive",fields="files(id,name,modifiedTime,mimeType)",pageSize=limit,orderBy="modifiedTime desc").execute().get("files",[])
+
 def restore_index_from_drive(service=None, folder_id=None, force=False):
  now=time.monotonic()
  if not force and now-DRIVE_INDEX_CACHE["loaded_at"]<DRIVE_INDEX_CACHE_TTL:
   return DRIVE_INDEX_CACHE["items"]
  service=service or drive_service()
  if not service:
-  # Keep the last successful snapshot available during a temporary Drive outage.
   return DRIVE_INDEX_CACHE["items"] or rows()
  folder_id=folder_id or ensure_drive_folder(service)
- query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
- found=service.files().list(q=query,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
- def _read_list(file_id,label):
-  raw=service.files().get(fileId=file_id,alt="media").execute()
-  if isinstance(raw,bytes): raw=raw.decode("utf-8-sig")
-  elif not isinstance(raw,(dict,list)): raw=str(raw).lstrip("\ufeff")
-  data=raw if isinstance(raw,(dict,list)) else json.loads(raw)
-  if isinstance(data,dict):
-   data=data.get("documents",data.get("items",data.get("data",[])))
-  if not isinstance(data,list):
-   raise ValueError(label+" يجب أن يحتوي قائمة documents أو items")
-  return data
  restored=[]
- if found: restored+=_read_list(found[0]["id"],"archive-index.json")
- # Read Gemini's manifest by folder/name first. If it was saved elsewhere,
- # use the known manifest file ID as a read-only fallback (never move or edit it).
- manifest_count=0
- try:
-  mq="name='archive-drive-manifest.json' and '"+folder_id+"' in parents and trashed=false"
-  mf=service.files().list(q=mq,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
-  manifest_id=mf[0]["id"] if mf else None
-  manifest_rows=_read_list(manifest_id,"archive-drive-manifest.json") if manifest_id else []
-  manifest_source="folder" if mf else "configured_file_id"
-  # The folder copy can be an older empty placeholder. Prefer its content only
-  # when it actually contains records; otherwise read Gemini's known manifest ID.
-  if not manifest_rows:
+ source_counts={}
+ # Gemini's canonical index is read-only. Inspect every recent copy and choose
+ # the richest non-empty one instead of trusting a possibly empty placeholder.
+ for filename in ("archive-index.json","archive-drive-manifest.json"):
+  candidates=[]
+  try:
+   candidates=_drive_named_files(service,filename,folder_id,100)
+  except Exception as exc:
+   logger.warning("Drive listing failed for %s: %s",filename,exc)
+  best=[]
+  for candidate in candidates:
+   try:
+    records=_read_drive_json_list(service,candidate["id"],filename)
+    if len(records)>len(best): best=records
+   except Exception as exc:
+    logger.warning("Skipping unreadable %s file=%s: %s",filename,candidate.get("id"),exc)
+  # A configured Gemini manifest may live outside the archive folder.
+  if filename=="archive-drive-manifest.json" and not best:
    fallback_id=os.getenv("ARCHIVE_DRIVE_MANIFEST_ID","1W-R-ou6LvPQFn6dN_8W6R2eG5R95PdKz")
-   if fallback_id and fallback_id != manifest_id:
-    fallback_rows=_read_list(fallback_id,"archive-drive-manifest.json fallback")
-    if fallback_rows:
-     manifest_id=fallback_id
-     manifest_rows=fallback_rows
-     manifest_source="configured_file_id"
-  manifest_count=len(manifest_rows)
-  restored+=manifest_rows
-  logger.info("Drive manifest loaded: documents=%s source=%s",manifest_count,manifest_source)
+   if fallback_id:
+    try: best=_read_drive_json_list(service,fallback_id,filename+" fallback")
+    except Exception as exc: logger.warning("Manifest fallback read failed: %s",exc)
+  source_counts[filename]=len(best)
+  restored.extend(best)
+ # Website-owned uploads and edits live in a separate durable file. Never
+ # overwrite Gemini's archive-index.json or archive-drive-manifest.json.
+ try:
+  site_files=_drive_named_files(service,"archive-website-index.json",folder_id,20)
+  best_site=[]
+  for candidate in site_files:
+   try:
+    records=_read_drive_json_list(service,candidate["id"],"archive-website-index.json")
+    if len(records)>len(best_site): best_site=records
+   except Exception as exc: logger.warning("Website index read skipped: %s",exc)
+  restored.extend(best_site)
+  source_counts["archive-website-index.json"]=len(best_site)
  except Exception as exc:
-  logger.warning("Manifest read skipped: %s",exc)
- if not found and not restored:
+  logger.warning("Website index lookup failed: %s",exc)
+ if not restored:
+  # Do not erase a previously good local snapshot just because Drive returned
+  # an empty or incomplete manifest during a temporary sync issue.
+  local=rows()
+  if local:
+   DRIVE_INDEX_CACHE.update({"items":local,"loaded_at":now})
+   logger.warning("Drive indexes were empty; retaining %s local records",len(local))
+   return local
   DRIVE_INDEX_CACHE.update({"items":[],"loaded_at":now})
-  save([])
-  logger.error("No archive index or manifest records found; serving empty archive")
+  logger.error("No records found in Drive index/manifest files")
   return []
  by_id={}
  for source in restored:
@@ -221,19 +253,31 @@ def restore_index_from_drive(service=None, folder_id=None, force=False):
   item=normalize_drive_document(source)
   ident=item["id"]
   old=by_id.get(ident)
-  # keep the richer record when the same document appears twice (more text wins)
-  if old is None or len(str(item.get("text") or ""))>len(str(old.get("text") or "")): by_id[ident]=item
+  if old is None or len(str(item.get("text") or item.get("full_text") or ""))>len(str(old.get("text") or old.get("full_text") or "")):
+   by_id[ident]=item
  normalized=list(by_id.values())
  normalized.sort(key=lambda x:str(x.get("date") or x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
  save(normalized)
  DRIVE_INDEX_CACHE.update({"items":normalized,"loaded_at":now})
- logger.info("Drive archive index refreshed: %s documents; index file=%s; manifest records=%s",len(normalized),found[0]["id"] if found else "not-found",manifest_count)
+ logger.info("Drive archive restored: total=%s sources=%s",len(normalized),source_counts)
  return normalized
 
 def sync_index_to_drive(items, folder_id):
- # The Drive index is owned by Gemini. The website is a read-only consumer:
- # never overwrite Gemini's source-of-truth index with a partial Render snapshot.
- logger.info("Drive index write skipped: Gemini owns archive-index.json")
+ # Persist the website's own records separately; Gemini's source files remain untouched.
+ try:
+  service=drive_service()
+  folder_id=folder_id or ensure_drive_folder(service)
+  payload=json.dumps(items,ensure_ascii=False,indent=2).encode("utf-8")
+  media=MediaIoBaseUpload(io.BytesIO(payload),mimetype="application/json",resumable=False)
+  existing=_drive_named_files(service,"archive-website-index.json",folder_id,20)
+  if existing:
+   service.files().update(fileId=existing[0]["id"],media_body=media).execute()
+  else:
+   service.files().create(body={"name":"archive-website-index.json","parents":[folder_id],"mimeType":"application/json"},media_body=media,fields="id").execute()
+  logger.info("Website index persisted to Drive: %s records",len(items))
+ except Exception as exc:
+  logger.exception("Website index persistence failed: %s",exc)
+  raise
 app=FastAPI(title="NABIL AI School Directors Archive")
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
 ALLOWED={".pdf",".docx",".png",".jpg",".jpeg",".webp",".tif",".tiff"}
