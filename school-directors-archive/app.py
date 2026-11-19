@@ -48,8 +48,16 @@ def persist_google_credentials(creds):
   return False
 
 def google_credentials():
- if not TOKEN_FILE.exists() and os.getenv("GOOGLE_TOKEN_JSON"):
-  TOKEN_FILE.write_text(os.environ["GOOGLE_TOKEN_JSON"],encoding="utf-8")
+ # Render environment is the durable source of truth. Always prefer it over
+ # the container file, which may survive a restart with an older, stale token.
+ env_token=os.getenv("GOOGLE_TOKEN_JSON")
+ if env_token:
+  try:
+   current=TOKEN_FILE.read_text(encoding="utf-8") if TOKEN_FILE.exists() else None
+  except Exception:
+   current=None
+  if current != env_token:
+   TOKEN_FILE.write_text(env_token,encoding="utf-8")
  if not TOKEN_FILE.exists(): return None
  try:
   token_data=json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
