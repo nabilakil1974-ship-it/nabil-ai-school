@@ -192,11 +192,22 @@ def restore_index_from_drive(service=None, folder_id=None, force=False):
  try:
   mq="name='archive-drive-manifest.json' and '"+folder_id+"' in parents and trashed=false"
   mf=service.files().list(q=mq,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
-  manifest_id=mf[0]["id"] if mf else os.getenv("ARCHIVE_DRIVE_MANIFEST_ID","1W-R-ou6LvPQFn6dN_8W6R2eG5R95PdKz")
+  manifest_id=mf[0]["id"] if mf else None
   manifest_rows=_read_list(manifest_id,"archive-drive-manifest.json") if manifest_id else []
+  manifest_source="folder" if mf else "configured_file_id"
+  # The folder copy can be an older empty placeholder. Prefer its content only
+  # when it actually contains records; otherwise read Gemini's known manifest ID.
+  if not manifest_rows:
+   fallback_id=os.getenv("ARCHIVE_DRIVE_MANIFEST_ID","1W-R-ou6LvPQFn6dN_8W6R2eG5R95PdKz")
+   if fallback_id and fallback_id != manifest_id:
+    fallback_rows=_read_list(fallback_id,"archive-drive-manifest.json fallback")
+    if fallback_rows:
+     manifest_id=fallback_id
+     manifest_rows=fallback_rows
+     manifest_source="configured_file_id"
   manifest_count=len(manifest_rows)
   restored+=manifest_rows
-  logger.info("Drive manifest loaded: documents=%s source=%s",manifest_count,"folder" if mf else "configured_file_id")
+  logger.info("Drive manifest loaded: documents=%s source=%s",manifest_count,manifest_source)
  except Exception as exc:
   logger.warning("Manifest read skipped: %s",exc)
  if not found and not restored:
