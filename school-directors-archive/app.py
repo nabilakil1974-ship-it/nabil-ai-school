@@ -186,16 +186,23 @@ def restore_index_from_drive(service=None, folder_id=None, force=False):
   return data
  restored=[]
  if found: restored+=_read_list(found[0]["id"],"archive-index.json")
- # The OCR archiving manifest (full text + original/OCR links) is a second source; newest file wins.
+ # Read Gemini's manifest by folder/name first. If it was saved elsewhere,
+ # use the known manifest file ID as a read-only fallback (never move or edit it).
+ manifest_count=0
  try:
   mq="name='archive-drive-manifest.json' and '"+folder_id+"' in parents and trashed=false"
   mf=service.files().list(q=mq,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
-  if mf: restored+=_read_list(mf[0]["id"],"archive-drive-manifest.json")
+  manifest_id=mf[0]["id"] if mf else os.getenv("ARCHIVE_DRIVE_MANIFEST_ID","1W-R-ou6LvPQFn6dN_8W6R2eG5R95PdKz")
+  manifest_rows=_read_list(manifest_id,"archive-drive-manifest.json") if manifest_id else []
+  manifest_count=len(manifest_rows)
+  restored+=manifest_rows
+  logger.info("Drive manifest loaded: documents=%s source=%s",manifest_count,"folder" if mf else "configured_file_id")
  except Exception as exc:
   logger.warning("Manifest read skipped: %s",exc)
  if not found and not restored:
   DRIVE_INDEX_CACHE.update({"items":[],"loaded_at":now})
   save([])
+  logger.error("No archive index or manifest records found; serving empty archive")
   return []
  by_id={}
  for source in restored:
@@ -209,7 +216,7 @@ def restore_index_from_drive(service=None, folder_id=None, force=False):
  normalized.sort(key=lambda x:str(x.get("date") or x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
  save(normalized)
  DRIVE_INDEX_CACHE.update({"items":normalized,"loaded_at":now})
- logger.info("Drive archive index refreshed: %s documents; index file=%s",len(normalized),found[0]["id"])
+ logger.info("Drive archive index refreshed: %s documents; index file=%s; manifest records=%s",len(normalized),found[0]["id"] if found else "not-found",manifest_count)
  return normalized
 
 def sync_index_to_drive(items, folder_id):
