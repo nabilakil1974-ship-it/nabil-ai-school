@@ -24,16 +24,19 @@ class _Req:
     def __init__(s, v): s.v = v
     def execute(s): return s.v
 class _Files:
-    def __init__(s, raw): s.raw = raw
-    def list(s, **k): return _Req({"files": [{"id": "idx1", "name": "archive-index.json"}]})
-    def get(s, **k): return _Req(s.raw)
+    def __init__(s, raw, idx): s.raw = raw; s.idx = idx
+    def list(s, **k):
+        if "manifest" in k.get("q", ""): return _Req({"files": [{"id": "m1", "name": "archive-drive-manifest.json"}]})
+        return _Req({"files": [{"id": "idx1", "name": "archive-index.json"}]}) if not getattr(s, "no_index", False) else _Req({"files": []})
+    def get(s, **k): return _Req(s.raw if k.get("fileId") != "idx1" else s.idx)
 class _Svc:
-    def __init__(s, raw): s._f = _Files(raw)
+    def __init__(s, raw, idx): s._f = _Files(raw, idx)
     def files(s): return s._f
 
 def load(monkeypatch, data):
     raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
-    monkeypatch.setattr(A, "drive_service", lambda: _Svc(raw))
+    idx = (Path(__file__).parent / "fixtures" / "archive-index-pending.json").read_bytes()
+    monkeypatch.setattr(A, "drive_service", lambda: _Svc(raw, idx))
     monkeypatch.setattr(A, "ensure_drive_folder", lambda s: "folder")
     A.DRIVE_INDEX_CACHE.update({"items": [], "loaded_at": -1e9})
 
@@ -42,9 +45,12 @@ def test_import_20_style_manifest(monkeypatch):
     load(monkeypatch, data + data[:3])  # re-import with duplicates must not duplicate
     c = TestClient(A.app)
     docs = c.get("/api/documents").json()
-    assert len(docs) == len(data)
+    assert len(docs) == len(data) + 1  # manifest docs + the one pending doc from archive-index.json
     assert len({d["id"] for d in docs}) == len(docs)
-    for src, d in zip(sorted(data, key=lambda x: x["document_id"]), sorted(docs, key=lambda x: x["id"])):
+    ids = {x["document_id"] for x in data}
+    mdocs = [d for d in docs if d["id"] in ids]
+    assert len(mdocs) == len(data)
+    for src, d in zip(sorted(data, key=lambda x: x["document_id"]), sorted(mdocs, key=lambda x: x["id"])):
         assert d["id"] == src["document_id"]
         assert d["title"] == src["original_title"] and d["filename"] == src["original_title"]
         assert d["original_link"] == src["original_url"] == d["original_url"]

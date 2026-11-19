@@ -157,25 +157,38 @@ def restore_index_from_drive(service=None, folder_id=None, force=False):
  folder_id=folder_id or ensure_drive_folder(service)
  query="name='archive-index.json' and '"+folder_id+"' in parents and trashed=false"
  found=service.files().list(q=query,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
- if not found:
+ def _read_list(file_id,label):
+  raw=service.files().get(fileId=file_id,alt="media").execute()
+  if isinstance(raw,bytes): raw=raw.decode("utf-8-sig")
+  elif not isinstance(raw,(dict,list)): raw=str(raw).lstrip("\ufeff")
+  data=raw if isinstance(raw,(dict,list)) else json.loads(raw)
+  if isinstance(data,dict):
+   data=data.get("documents",data.get("items",data.get("data",[])))
+  if not isinstance(data,list):
+   raise ValueError(label+" يجب أن يحتوي قائمة documents أو items")
+  return data
+ restored=[]
+ if found: restored+=_read_list(found[0]["id"],"archive-index.json")
+ # The OCR archiving manifest (full text + original/OCR links) is a second source; newest file wins.
+ try:
+  mq="name='archive-drive-manifest.json' and '"+folder_id+"' in parents and trashed=false"
+  mf=service.files().list(q=mq,spaces="drive",fields="files(id,name,modifiedTime)",pageSize=5,orderBy="modifiedTime desc").execute().get("files",[])
+  if mf: restored+=_read_list(mf[0]["id"],"archive-drive-manifest.json")
+ except Exception as exc:
+  logger.warning("Manifest read skipped: %s",exc)
+ if not found and not restored:
   DRIVE_INDEX_CACHE.update({"items":[],"loaded_at":now})
   save([])
   return []
- raw=service.files().get(fileId=found[0]["id"],alt="media").execute()
- if isinstance(raw,bytes): raw=raw.decode("utf-8-sig")
- elif not isinstance(raw,(dict,list)): raw=str(raw).lstrip("\ufeff")
- restored=raw if isinstance(raw,(dict,list)) else json.loads(raw)
- if isinstance(restored,dict):
-  restored=restored.get("documents",restored.get("items",restored.get("data",[])))
- if not isinstance(restored,list):
-  raise ValueError("archive-index.json يجب أن يحتوي قائمة documents أو items")
- normalized=[]; seen=set()
+ by_id={}
  for source in restored:
   if not isinstance(source,dict): continue
   item=normalize_drive_document(source)
   ident=item["id"]
-  if ident in seen: continue
-  seen.add(ident); normalized.append(item)
+  old=by_id.get(ident)
+  # keep the richer record when the same document appears twice (more text wins)
+  if old is None or len(str(item.get("text") or ""))>len(str(old.get("text") or "")): by_id[ident]=item
+ normalized=list(by_id.values())
  normalized.sort(key=lambda x:str(x.get("date") or x.get("uploaded_at") or x.get("created_at") or ""),reverse=True)
  save(normalized)
  DRIVE_INDEX_CACHE.update({"items":normalized,"loaded_at":now})
