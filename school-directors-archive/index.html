@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43"><title>NABIL AI | أرشيف مديري المدارس في لبنان</title>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--gold:#d7a94b;--ink:#203246;--muted:#718195;--line:#e2eaf1}
+*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:var(--ink);font-family:Tahoma,Arial,sans-serif}
+header{position:relative;background:linear-gradient(120deg,#102a43,#1769aa);color:#fff;padding:22px max(5%,calc((100% - 1160px)/2));display:flex;align-items:center;justify-content:center;gap:14px;min-height:150px}
+.brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center}.avatar{width:82px;height:82px;border-radius:50%;object-fit:cover;object-position:center;border:3px solid var(--gold);background:#fff;display:block;flex:none;box-shadow:0 3px 12px #061a2b55}
+h1{font-size:23px;margin:0}header p{margin:6px 0 0;color:#dceaf7;font-size:14px}
+.open{position:absolute;left:max(5%,calc((100% - 1160px)/2));top:18px;border:1px solid #ffffff70;border-radius:999px;padding:8px 13px;font-size:13px}
+.wrap{max-width:1160px;margin:27px auto;padding:0 16px}.hero,.panel{background:#fff;border-radius:18px;padding:23px;box-shadow:0 5px 24px #18334b0d;margin-bottom:18px}
+.hero h2{margin:0 0 8px;font-size:24px}.muted{color:var(--muted)}.search{display:flex;gap:9px;margin-top:17px}
+.search input{flex:1;min-width:0;border:1px solid #d5dee8;border-radius:11px;padding:14px;font-size:16px}
+button{border:0;border-radius:10px;padding:12px 18px;background:var(--blue);color:#fff;font-weight:bold;cursor:pointer}.file-control{display:flex;flex-direction:column;gap:8px;border:1px solid #d5dee8;border-radius:10px;padding:10px 12px;background:#f8fbfe;color:#203246;font-weight:bold;min-width:220px}.file-control input{display:block;max-width:100%;font:inherit;font-weight:normal;color:#203246}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:13px;margin:19px 0}
+.tile{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px;cursor:pointer;text-align:right;color:var(--ink)}
+.tile:hover,.tile.active{border-color:var(--blue);box-shadow:0 5px 18px #1769aa18}.ico{font-size:26px}.tile h3{margin:9px 0 5px;font-size:16px}.tile p{margin:0;color:var(--muted);font-size:13px}
+.category-help{margin:-4px 0 14px;color:var(--muted);font-size:13px;line-height:1.8}.tile p strong{color:var(--blue)}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.panel h3{margin:0}
+#count{font-size:13px;color:var(--muted)}.results{display:grid;gap:11px;margin-top:16px}
+.doc{border:1px solid var(--line);border-radius:13px;padding:15px;display:flex;gap:15px;align-items:center;justify-content:space-between}
+.doc h4{margin:0 0 7px;font-size:16px}.doc-main{min-width:0;flex:1}.meta{font-size:13px;color:var(--muted);line-height:1.8}.decision-summary{margin:9px 0 0;padding:10px 12px;background:#f5f8fc;border-right:3px solid var(--gold);border-radius:8px;line-height:1.9;font-size:14px}.doc-actions{display:flex;gap:8px;flex:none}.doc-actions a{display:inline-block;text-decoration:none;background:#edf4fa;color:#14588d;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:bold}
+.empty{text-align:center;padding:35px 12px;color:var(--muted);line-height:1.9}\n#uploadStatus{display:none;margin-top:14px;padding:15px;border-radius:12px;line-height:1.9;font-weight:bold;white-space:pre-line}\n#uploadStatus.show{display:block}#uploadStatus .step{padding:7px 0;border-bottom:1px solid #00000012}#uploadStatus .step:last-child{border:0}#uploadStatus .done{font-weight:700}#uploadStatus .pending{opacity:.72}#uploadStatus .detail{margin:8px 0;padding:10px;background:#ffffff99;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400}#uploadStatus .ocr-text{max-height:420px;overflow:auto;direction:rtl;text-align:right;background:#fff;color:#203246;border:1px solid #d5dee8;border-radius:10px;padding:14px;margin-top:12px;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.9}#uploadStatus .ocr-heading{font-weight:bold;margin-top:16px}#uploadStatus .copy-ocr{margin-top:8px;background:#fff;color:#14588d;border:1px solid #b9cfe2}#uploadStatus.success{background:#e8f7ee;color:#176b38;border:1px solid #b8e2c6}#uploadStatus.warning{background:#fff6df;color:#805b00;border:1px solid #f0d78e}#uploadStatus.error{background:#fff0f0;color:#a12626;border:1px solid #efc0c0}button:disabled{opacity:.6;cursor:wait}
+footer{text-align:center;color:#8795a4;padding:22px;font-size:13px}
+@media(max-width:600px){h1{font-size:18px}.search{flex-direction:column}.doc{align-items:flex-start;flex-direction:column}.doc-actions{width:100%}.doc-actions a{flex:1;text-align:center}}
+</style></head>
+<body>
+<header><div class="brand"><img class="avatar" src="https://raw.githubusercontent.com/nabilakil1974-ship-it/nabil-ai-school/school-directors-archive/app/static/nabil-profile.jpg" alt="NABIL AI Avatar"><div><h1>NABIL AI</h1><p>أرشيف مديري المدارس في لبنان</p></div></div><div class="open">منصة مفتوحة للجميع</div></header>
+<main class="wrap">
+<section class="hero"><h2>الأرشيف الإداري والتربوي</h2><div class="muted">ابحث في التعاميم والقرارات والقوانين والمراسيم والكتب الإدارية.</div>
+</section>
+<section><h3 style="margin:8px 0 10px">فهرس الأرشيف حسب نوع الوثيقة</h3><p class="category-help">تصفّح الأرشيف حسب نوع الوثيقة: اضغط على «التعاميم» أو «القرارات» أو غيرها لعرض المستندات من تلك الفئة. اضغط «كل الوثائق» للعودة إلى كامل الأرشيف.</p><section class="grid" id="categories">
+<button class="tile active" data-cat=""><div class="ico">📚</div><h3>كل الوثائق</h3><p>عرض جميع فئات الأرشيف</p></button>
+<button class="tile" data-cat="تعميم"><div class="ico">📣</div><h3>التعاميم</h3><p>التعاميم الوزارية والإدارية</p></button>
+<button class="tile" data-cat="قرار"><div class="ico">📑</div><h3>القرارات</h3><p>القرارات الرسمية وأرقامها</p></button>
+<button class="tile" data-cat="قانون"><div class="ico">⚖️</div><h3>القوانين</h3><p>القوانين والمواد التشريعية</p></button>
+<button class="tile" data-cat="مرسوم"><div class="ico">🏛️</div><h3>المراسيم والأنظمة</h3><p>المراسيم والأنظمة</p></button>
+<button class="tile" data-cat="كتاب"><div class="ico">🗂️</div><h3>الكتب والمذكرات</h3><p>الكتب الإدارية والمراسلات</p></button><button class="tile" data-cat="كتب إلكترونية"><div class="ico">📚</div><h3>الكتب الإلكترونية</h3><p>كتب مدرسية ومراجع PDF محفوظة في مكان واحد</p></button><button class="tile" data-cat="نماذج وإفادات"><div class="ico">📋</div><h3>النماذج والإفادات</h3><p>النماذج والإفادات الإدارية</p></button>
+</section></section>
+<section class="panel"><h3>البحث في جميع الوثائق</h3><div class="search"><input id="q" type="search" placeholder="اكتب كلمة مثل النقل أو الإجازة أو التعاقد..." autocomplete="off"><button id="searchBtn">بحث في الأرشيف</button></div></section>
+<section class="panel"><div class="panel-head"><h3>إضافة مستند إلى الأرشيف</h3></div><p class="muted">ارفع ملف PDF أو Word (DOCX) مباشرة، أو اختر صورة واحدة أو عدة صور للمستند نفسه. سيحفظ الموقع الأصل في Google Drive ويستخرج النص والبيانات الأساسية لإتاحتها في البحث.</p><form id="uploadForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:15px 0"><label class="file-control">📄 اختيار PDF أو Word أو صور<input id="galleryFiles" type="file" accept="image/*,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple></label><label class="file-control">📷 التقاط صورة بالكاميرا<input id="cameraFiles" type="file" accept="image/*" capture="environment"></label><span id="selectedFiles" class="muted">لم يتم اختيار ملف بعد</span><button type="submit" id="uploadSubmit">ارفع المستند أو الصور وأرشفها</button></form><div id="uploadStatus" class="muted" role="status"></div></section><section class="panel"><div class="panel-head"><h3 id="listTitle">وثائق الأرشيف</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span id="count">جارٍ تحميل فهرس الوثائق...</span><a id="downloadCategory" href="#" style="display:none;text-decoration:none;background:#edf4fa;color:#14588d;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:bold">تنزيل الفئة كاملة ZIP</a></div></div><div id="results" class="results"><div class="empty">يتم تحميل فهرس الأرشيف...</div></div></section>
+</main><footer>NABIL AI · أرشيف مديري المدارس في لبنان</footer>
+<script>
+let docs=[],category='',searchSequence=0;
+const API_BASE='https://nabil-school-directors-archive-api.onrender.com';
+const apiPath=path=>API_BASE+path;
+const $=id=>document.getElementById(id);
+function norm(v){return String(v??'').toLocaleLowerCase('ar').normalize('NFKC')}
+function categoryMatch(doc,cat){
+ const value=norm(doc.category||doc.document_type||'');
+ if(!cat)return true;
+ if(cat==='نماذج وإفادات')return value===norm(cat)||['نموذج','نماذج','إفادة','إفادات','افادة','افادات'].some(x=>value.includes(norm(x)));
+ if(cat==='كتاب')return ['كتاب','مذكرة','مراسلة'].some(x=>value.includes(norm(x)));
+ if(cat==='مرسوم')return ['مرسوم','نظام'].some(x=>value.includes(norm(x)));
+ return value.includes(norm(cat));
+}
+async function render(){
+ const seq=++searchSequence;
+ const q=$('q').value.trim();
+ $('count').textContent='جارٍ البحث في النصوص المؤرشفة...';
+ const dl=$('downloadCategory');if(dl){dl.style.display=category?'inline-block':'none';dl.href=category?apiPath('/api/category/'+encodeURIComponent(category)+'/download'):'#';$('listTitle').textContent=category?'وثائق: '+category:'وثائق الأرشيف';}
+ try{
+  const params=new URLSearchParams({q,category});
+  const response=await fetch(apiPath('/api/search?'+params.toString()),{cache:'no-store'});
+  if(!response.ok)throw Error('search api');
+  const payload=await response.json();
+  if(seq!==searchSequence)return;
+  let found=Array.isArray(payload.results)?payload.results:[];
+  if(category==='قرار'){
+   found=found.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''),'ar'));
+  }
+  $('count').textContent='عدد النتائج: '+found.length;
+  if(!found.length){
+   $('results').innerHTML='<div class="empty">'+(q?'لا توجد نتائج تطابق كلمات البحث في النصوص المستخرجة.':(category?'لا توجد وثائق ضمن هذه الفئة.':'لا توجد وثائق منشورة في الأرشيف حالياً.'))+'</div>';
+   return;
+  }
+  $('results').innerHTML=found.map(d=>{
+   const isDecision=category==='قرار'||norm(d.category||d.document_type||'').includes(norm('قرار'));
+   const number=d.number||d.document_number||'غير محدد';
+   const synopsis=d.subject||d.summary||d.title||'لم تُسجّل نبذة عن هذا القرار بعد.';
+   const heading=isDecision?'قرار رقم '+number:(d.title||d.subject||'مستند إداري');
+   return '<article class="doc"><div class="doc-main"><h4>'+esc(heading)+'</h4><div class="meta">'+[d.date&&'تاريخ الصدور: '+d.date,d.issuer&&'الجهة المصدرة: '+d.issuer,d.category&&'الفئة: '+d.category,d.page_count>1&&'عدد الصفحات: '+d.page_count].filter(Boolean).map(esc).join(' · ')+'</div>'+(isDecision?'<p class="decision-summary"><strong>نبذة عن القرار:</strong> '+esc(synopsis)+'</p>':'')+'</div><div class="doc-actions"><a href="'+apiPath('/document/'+encodeURIComponent(d.id))+'">عرض المضمون والقرار الأصلي</a><a href="'+apiPath('/api/file/'+encodeURIComponent(d.id)+'?download=1')+'">تنزيل</a></div></article>';
+  }).join('');
+ }catch(error){
+  if(seq!==searchSequence)return;
+  $('count').textContent='تعذر تنفيذ البحث';
+  $('results').innerHTML='<div class="empty">تعذر الاتصال بخدمة البحث. أعد المحاولة بعد قليل.</div>';
+ }
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function attr(s){return esc(s)}
+$('searchBtn').addEventListener('click',()=>{render();$('results').scrollIntoView({behavior:'smooth',block:'start'})});
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();render();$('results').scrollIntoView({behavior:'smooth',block:'start'})}});
+$('q').addEventListener('input',render);
+document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.cat;document.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('active',x===b));render();$('results').scrollIntoView({behavior:'smooth',block:'start'})}));
+(function(){try{const c=new URLSearchParams(location.search).get('cat');if(c){category=c;document.querySelectorAll('[data-cat]').forEach(x=>x.classList.toggle('active',x.dataset.cat===c))}}catch(_){}})();
+function loadDocs(){return fetch(apiPath('/api/documents'),{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('api');return r.json()}).then(data=>{docs=Array.isArray(data)?data:[];document.querySelectorAll('[data-cat]').forEach(b=>{const c=b.dataset.cat;const n=c?docs.filter(d=>categoryMatch(d,c)).length:docs.length;const p=b.querySelector('p');if(p)p.innerHTML=esc(p.textContent.split(' · ')[0])+' · <strong>'+n+'</strong> وثيقة'});render();return docs}).catch(()=>{$('count').textContent='تعذر تحميل الفهرس';$('results').innerHTML='<div class="empty">تعذر الاتصال بخدمة الأرشيف.</div>';throw Error('تعذر تحديث قائمة الأرشيف')})}loadDocs();setInterval(()=>{loadDocs().catch(()=>{});},60000);let selectedImages=[];function showSelected(){$('selectedFiles').textContent=selectedImages.length?'تم اختيار '+selectedImages.length+' ملف':'لم يتم اختيار صور بعد'}$('galleryFiles').addEventListener('change',e=>{selectedImages=Array.from(e.target.files||[]);showSelected()});$('cameraFiles').addEventListener('change',e=>{const picked=Array.from(e.target.files||[]);if(picked.length)selectedImages=selectedImages.concat(picked);showSelected();e.target.value='' });function escStatus(v){return String(v??'غير واضح').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showSteps(states,details=''){
+ const s=$('uploadStatus');s.className='show warning';
+ const labels=['استلام الملف والتحقق من صيغته','حفظ النسخة الأصلية في Google Drive','تسجيل المستند في فهرس الأرشيف','تجهيز المستند للاستخراج اليدوي لاحقاً','تحديث قائمة الوثائق على الموقع'];
+ s.innerHTML=labels.map((label,i)=>'<div class="step '+(states[i]?'done':'pending')+'">'+(states[i]?'✓ ':'◷ ')+label+'</div>').join('')+(details?'<div class="detail">'+details+'</div>':'');
+ s.scrollIntoView({behavior:'smooth',block:'center'});
+}
+$('uploadForm').addEventListener('submit',e=>{
+ e.preventDefault();
+ const btn=$('uploadSubmit');
+ if(!selectedImages.length){$('uploadStatus').className='show warning';$('uploadStatus').textContent='لم يتم اختيار ملف. اختر PDF أو Word أو صورة أولاً.';return}
+ const files=selectedImages.slice(), count=files.length;
+ btn.disabled=true;
+ showSteps([false,false,false,false,false],'جارٍ تجهيز '+count+' ملف للإرسال...');
+ const fd=new FormData();files.forEach(f=>fd.append('files',f));
+ const xhr=new XMLHttpRequest();
+ xhr.open('POST',apiPath('/api/upload'));
+ xhr.timeout=180000;
+ xhr.upload.addEventListener('progress',ev=>{
+   if(ev.lengthComputable){
+    const pct=Math.round(ev.loaded/ev.total*100);
+    showSteps([pct>=100,false,false,false,false],'تم إرسال '+pct+'٪ من الملفات ('+count+' ملف).');
+   }
+ });
+ xhr.upload.addEventListener('load',()=>showSteps([true,false,false,false,false],'وصل الملف إلى الخادم. سيُحفظ الأصل ويُسجّل في الفهرس دون تشغيل OCR أو Gemini تلقائياً.'));
+ xhr.addEventListener('load',async()=>{
+  try{
+   let d;try{d=JSON.parse(xhr.responseText)}catch{throw Error('رد الخادم غير مفهوم')}
+   if(xhr.status<200||xhr.status>=300||!d.ok)throw Error(d.message||d.detail||'الخادم لم يؤكد حفظ الصور في Google Drive');
+   const x=d.document||{}, chars=Number(d.extracted_characters||0), txt=(d.extracted_text||'').trim();
+   const states=[true,x.drive_status==='saved',!!x.id,x.drive_status==='saved',x.drive_status==='saved'];
+   const details='<b>رقم المستند:</b> '+escStatus(x.number||'يُحدّد عند الاستخراج')+'\\n<b>التاريخ:</b> '+escStatus(x.date||'يُحدّد عند الاستخراج')+'\\n<b>الموضوع:</b> '+escStatus(x.subject||'يُحدّد عند الاستخراج')+'\\n\\n<b>عدد الأحرف المستخرجة:</b> '+chars+'\\n<b>الجهة:</b> '+escStatus(x.issuer||'تُحدّد عند الاستخراج')+'\\n<b>الفئة:</b> '+escStatus(x.category||'قيد التصنيف')+'\\n<b>حالة المعالجة:</b> '+escStatus(d.ocr_status||'بانتظار الاستخراج اليدوي');
+   showSteps(states,details);
+   const ocrBox=document.createElement('div');ocrBox.innerHTML='<div class="ocr-heading">النص المستخرج من المستند</div><div class="ocr-text" id="fullOcrText"></div><button type="button" class="copy-ocr" id="copyOcrText">نسخ النص المستخرج كاملاً</button>'; $('uploadStatus').appendChild(ocrBox);$('fullOcrText').textContent=txt||'لم يتمكن النظام من استخراج نص من الصور.';$('copyOcrText').addEventListener('click',()=>{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>{$('copyOcrText').textContent='تم نسخ النص'}).catch(()=>{$('copyOcrText').textContent='تعذر النسخ تلقائياً'})}else{$('copyOcrText').textContent='حدد النص وانسخه يدوياً'}});
+   $('uploadStatus').className='show '+(chars?'success':'warning');
+   if(x.processing_message)$('uploadStatus').innerHTML+='<div class="detail">'+escStatus(x.processing_message)+'</div>';else if(!chars)$('uploadStatus').innerHTML+='<div class="detail">لم يتم استخراج نص بعد؛ المستند محفوظ بحالة المعالجة الظاهرة أعلاه.</div>';
+   else if(x.drive_status==='saved')$('uploadStatus').innerHTML+='<div class="detail">✓ تم تأكيد الحفظ في Google Drive.</div>';
+   else $('uploadStatus').innerHTML+='<div class="detail">⚠️ لم يتم تأكيد الحفظ الدائم في Google Drive. الحفظ المحلي وحده غير مضمون بعد إعادة تشغيل الخادم.</div>';
+   selectedImages=[];$('galleryFiles').value='';$('cameraFiles').value='';showSelected();
+   try{await loadDocs()}catch(_){}
+  }catch(err){
+   $('uploadStatus').className='show error';
+   $('uploadStatus').textContent='✕ لم تكتمل العملية: '+err.message+'\nاحتفظ بالصور الأصلية؛ لم يتم تأكيد الأرشفة.';
+  }finally{btn.disabled=false}
+ });
+ xhr.addEventListener('error',()=>{$('uploadStatus').className='show error';$('uploadStatus').textContent='✕ انقطع الاتصال بالخادم أثناء رفع الصور. احتفظ بالصور الأصلية.';btn.disabled=false});
+ xhr.addEventListener('timeout',()=>{$('uploadStatus').className='show error';$('uploadStatus').textContent='✕ انتهت مهلة المعالجة. لم يؤكد الخادم الأرشفة؛ احتفظ بالصور الأصلية.';btn.disabled=false});
+ xhr.send(fd);
+});</script></body></html>\n

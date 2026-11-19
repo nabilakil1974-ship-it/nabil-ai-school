@@ -4,3 +4,6 @@ client_secret.json
 credentials.json
 token.json
 *.oauth-token.json
+
+__pycache__/
+*.pyc
