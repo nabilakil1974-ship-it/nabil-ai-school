@@ -98,7 +98,7 @@ def normalize_drive_document(source):
  item=dict(source)
  # Gemini may use slightly different field names; normalize them once at the API boundary.
  aliases={
-  "title":("title","subject","document_title","name","filename","original_filename"),
+  "title":("title","original_title","subject","document_title","name","filename","original_filename"),
   "number":("number","document_number","document_no","reference_number"),
   "date":("date","document_date","issue_date","issued_at"),
   "category":("category","document_type","type","classification","document_category"),
@@ -123,7 +123,7 @@ def normalize_drive_document(source):
  if not item.get("title"):
   item["title"]=item.get("filename") or item.get("subject") or "مستند إداري"
  # Stable IDs keep links working when Gemini refreshes or reorders the index.
- drive_id=(item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id") or item.get("id"))
+ drive_id=(item.get("document_id") or item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id") or item.get("id"))
  if not drive_id:
   seed="|".join(str(item.get(k) or "") for k in ("original_url","title","number","date"))
   drive_id=hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
@@ -134,7 +134,7 @@ def normalize_drive_document(source):
  if item.get("original_url") and not item.get("original_link"):
   item["original_link"]=item["original_url"]
  # Allow the existing original-file viewer and ZIP routes to use Drive file IDs.
- remote_id=item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id")
+ remote_id=item.get("document_id") or item.get("original_file_id") or item.get("drive_file_id") or item.get("file_id")
  if not remote_id and item.get("original_url"):
   match=re.search(r"(?:[?&]id=|/d/)([A-Za-z0-9_-]{15,})",str(item["original_url"]))
   if match: remote_id=match.group(1)
@@ -143,7 +143,7 @@ def normalize_drive_document(source):
  if not item.get("files") and item.get("drive_files"):
   item["files"]=[{"filename":x.get("name") or item.get("filename") or item.get("title") or "document","page":int(x.get("page") or 1)} for x in item["drive_files"]]
  if not item.get("filename"):
-  item["filename"]=item.get("original_filename") or item.get("title") or "document"
+  item["filename"]=item.get("original_filename") or item.get("original_title") or item.get("title") or "document"
  return item
 
 def restore_index_from_drive(service=None, folder_id=None, force=False):
@@ -350,7 +350,7 @@ def search_documents(q="", category=""):
    continue
   searchable=" ".join(str(item.get(key) or "") for key in (
    "title","filename","subject","number","document_number","date","document_date",
-   "issuer","issuing_authority","category","document_type","text","full_text","summary","original_filename","referenced_decisions"
+   "issuer","issuing_authority","category","document_type","text","full_text","summary","original_filename","original_title","ocr_title","referenced_decisions"
   ))
   haystack=normalize_key(searchable)
   if query and query not in haystack and not any(term in haystack for term in terms):
@@ -378,6 +378,7 @@ def find_duplicate(items, number, date, subject, exclude_id=None):
 
 def category_from_type(value):
  v=str(value or "").strip().lower()
+ if any(x in v for x in ("كتاب إلكتروني","كتاب الكتروني","كتب إلكترونية","كتب الكترونية","ebook","e-book","textbook","كتاب مدرسي")): return "كتب إلكترونية"
  if any(x in v for x in ("نموذج","إفادة","افادة","نموذج وإفادة","form","certificate")): return "نماذج وإفادات"
  if "قانون" in v or "law" in v: return "قانون"
  if "مرسوم" in v or "decree" in v or "نظام" in v or "regulation" in v: return "مرسوم"
