@@ -159,8 +159,23 @@ _EXERCISE_REQUEST = re.compile(
 
 
 def parse_textbook_exercise_request(message: str) -> int | None:
+    """Number of the requested exercise/question, or None.
+
+    The strict digit pattern is tried first (unchanged behaviour). If it does
+    not match, the Student Intent Engine understands number words, ordinals,
+    Lebanese phrasing and typos ("السؤال الثالث", "question trois", "give me
+    the fifth exercise"). It only returns a number when the student clearly
+    named a question/exercise and a number; it never guesses.
+    """
     match = _EXERCISE_REQUEST.search(str(message or ""))
-    return int(match.group("number")) if match else None
+    if match:
+        return int(match.group("number"))
+    from app.services.student_intent import classify
+    intent = classify(message)
+    if intent.kind in ("get_question", "solve_question", "open_exercise", "full_solution", "hint") \
+            and intent.number is not None and 1 <= intent.number <= 999:
+        return intent.number
+    return None
 
 
 def indexed_textbook_exercise_context(
